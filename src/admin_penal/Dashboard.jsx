@@ -49,7 +49,7 @@ function Dashboard({ onAddUser }) {
   return (
     <div
       className={`min-h-screen px-3 pb-8 pt-20 md:ml-80 md:px-6 md:pt-0 ${
-        theme === "dark" ? " text-white" : "bg-slate-100 text-black"
+        theme === "dark" ? " text-white" : "bg-slate-400 text-black"
       }`}
     >
       <Sidebar_Admin onAddUser={() => setOpenRegister(true)} />
