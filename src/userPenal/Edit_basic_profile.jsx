@@ -2,7 +2,12 @@ import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
 
-export default function Edit_basic_profile({ open, onOpenChange, profile, onUpdated }) {
+export default function Edit_basic_profile({
+  open,
+  onOpenChange,
+  profile,
+  onUpdated,
+}) {
   const { id } = useParams();
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
@@ -24,6 +29,11 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleCheckboxChange = (e) => {
+    const { name, checked } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: checked }));
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -37,18 +47,9 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
       setLoading(true);
       const token = localStorage.getItem("token");
 
-      // Priority: URL param id → formData.userId → localStorage userId
-      const targetId =
-        id ||
-        (formData.userId?._id || formData.userId) ||
-        localStorage.getItem("userId");
-
-      if (!targetId) {
-        alert("Cannot determine user ID. Please refresh and try again.");
-        return;
-      }
-
-      const url = `http://localhost:5000/profile/${targetId}`;
+      const url = id
+        ? `http://localhost:5000/profile/${id}`
+        : `http://localhost:5000/profile/me`;
 
       const data = new FormData();
       Object.entries(formData).forEach(([key, val]) => {
@@ -60,10 +61,12 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
         data.append("profileImage", imageFile);
       }
 
-      const res = await axios.put(url, data, {
+      const res = await axios({
+        method: id ? "put" : "post",
+        url,
+        data,
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
         },
       });
 
@@ -90,10 +93,11 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
   const currentImage = imagePreview
     ? imagePreview
     : formData.profileImage
-    ? formData.profileImage.startsWith("data:") || formData.profileImage.startsWith("http")
-      ? formData.profileImage
-      : `data:image/png;base64,${formData.profileImage}`
-    : null;
+      ? formData.profileImage.startsWith("data:") ||
+        formData.profileImage.startsWith("http")
+        ? formData.profileImage
+        : `data:image/png;base64,${formData.profileImage}`
+      : null;
 
   return (
     <>
@@ -105,12 +109,13 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
 
       {/* Side panel */}
       <div className="fixed right-0 top-0 z-50 h-full w-full max-w-md bg-white shadow-2xl flex flex-col">
-
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h2 className="text-lg font-bold text-slate-800">Edit Profile</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Update your information</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Update your information
+            </p>
           </div>
           <button
             onClick={() => onOpenChange(false)}
@@ -122,7 +127,6 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
 
         {/* Scrollable form body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-
           {/* ── Profile Photo ── */}
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">
@@ -176,6 +180,22 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
                 <p className="text-xs text-slate-400 mt-1">
                   Photo will be saved with other fields on Save
                 </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    id="show-image"
+                    name="profileImageVisible"
+                    type="checkbox"
+                    checked={formData.profileImageVisible ?? true}
+                    onChange={handleCheckboxChange}
+                    className="h-4 w-4"
+                  />
+                  <label
+                    htmlFor="show-image"
+                    className="text-xs text-slate-500"
+                  >
+                    Show profile image in lists
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -188,29 +208,60 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
             <div className="space-y-3">
               <div>
                 <label className={labelCls}>Full Name</label>
-                <input name="fullName" value={formData.fullName || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  name="fullName"
+                  value={formData.fullName || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Gender</label>
-                  <input name="gender" value={formData.gender || ""} onChange={handleChange} className={inputCls} />
+                  <input
+                    name="gender"
+                    value={formData.gender || ""}
+                    onChange={handleChange}
+                    className={inputCls}
+                  />
                 </div>
                 <div>
                   <label className={labelCls}>Blood Group</label>
-                  <input name="bloodGroup" value={formData.bloodGroup || ""} onChange={handleChange} className={inputCls} />
+                  <input
+                    name="bloodGroup"
+                    value={formData.bloodGroup || ""}
+                    onChange={handleChange}
+                    className={inputCls}
+                  />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Birthday</label>
-                <input type="date" name="birthday" value={formData.birthday || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  type="date"
+                  name="birthday"
+                  value={formData.birthday || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>Nationality</label>
-                <input name="nationality" value={formData.nationality || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  name="nationality"
+                  value={formData.nationality || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>Marital Status</label>
-                <input name="maritalStatus" value={formData.maritalStatus || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  name="maritalStatus"
+                  value={formData.maritalStatus || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
             </div>
           </div>
@@ -223,33 +274,71 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
             <div className="space-y-3">
               <div>
                 <label className={labelCls}>Personal Email</label>
-                <input type="email" name="personalEmail" value={formData.personalEmail || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  type="email"
+                  name="personalEmail"
+                  value={formData.personalEmail || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>Company Email</label>
-                <input type="email" name="companyEmail" value={formData.companyEmail || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  type="email"
+                  name="companyEmail"
+                  value={formData.companyEmail || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Phone</label>
-                  <input name="phone" value={formData.phone || ""} onChange={handleChange} className={inputCls} />
+                  <input
+                    name="phone"
+                    value={formData.phone || ""}
+                    onChange={handleChange}
+                    className={inputCls}
+                  />
                 </div>
                 <div>
                   <label className={labelCls}>Alternate Phone</label>
-                  <input name="alternatePhone" value={formData.alternatePhone || ""} onChange={handleChange} className={inputCls} />
+                  <input
+                    name="alternatePhone"
+                    value={formData.alternatePhone || ""}
+                    onChange={handleChange}
+                    className={inputCls}
+                  />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Address</label>
-                <textarea name="address" value={formData.address || ""} onChange={handleChange} rows={2} className={inputCls} />
+                <textarea
+                  name="address"
+                  value={formData.address || ""}
+                  onChange={handleChange}
+                  rows={2}
+                  className={inputCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>LinkedIn</label>
-                <input name="linkedin" value={formData.linkedin || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  name="linkedin"
+                  value={formData.linkedin || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>GitHub</label>
-                <input name="github" value={formData.github || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  name="github"
+                  value={formData.github || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
             </div>
           </div>
@@ -263,26 +352,52 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Department</label>
-                  <input name="department" value={formData.department || ""} onChange={handleChange} className={inputCls} />
+                  <input
+                    name="department"
+                    value={formData.department || ""}
+                    onChange={handleChange}
+                    className={inputCls}
+                  />
                 </div>
                 <div>
                   <label className={labelCls}>Designation</label>
-                  <input name="designation" value={formData.designation || ""} onChange={handleChange} className={inputCls} />
+                  <input
+                    name="designation"
+                    value={formData.designation || ""}
+                    onChange={handleChange}
+                    className={inputCls}
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Batch</label>
-                  <input name="batch" value={formData.batch || ""} onChange={handleChange} className={inputCls} />
+                  <input
+                    name="batch"
+                    value={formData.batch || ""}
+                    onChange={handleChange}
+                    className={inputCls}
+                  />
                 </div>
                 <div>
                   <label className={labelCls}>Report To</label>
-                  <input name="reportTo" value={formData.reportTo || ""} onChange={handleChange} className={inputCls} />
+                  <input
+                    name="reportTo"
+                    value={formData.reportTo || ""}
+                    onChange={handleChange}
+                    className={inputCls}
+                  />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Joining Date</label>
-                <input type="date" name="joiningDate" value={formData.joiningDate || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  type="date"
+                  name="joiningDate"
+                  value={formData.joiningDate || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
             </div>
           </div>
@@ -295,15 +410,24 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
             <div className="space-y-3">
               <div>
                 <label className={labelCls}>Contact Person</label>
-                <input name="emergencyContactName" value={formData.emergencyContactName || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  name="emergencyContactName"
+                  value={formData.emergencyContactName || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>Contact Phone</label>
-                <input name="emergencyContactPhone" value={formData.emergencyContactPhone || ""} onChange={handleChange} className={inputCls} />
+                <input
+                  name="emergencyContactPhone"
+                  value={formData.emergencyContactPhone || ""}
+                  onChange={handleChange}
+                  className={inputCls}
+                />
               </div>
             </div>
           </div>
-
         </div>
 
         {/* Footer */}
@@ -322,7 +446,6 @@ export default function Edit_basic_profile({ open, onOpenChange, profile, onUpda
             {loading ? "Saving..." : "Save Changes"}
           </button>
         </div>
-
       </div>
     </>
   );

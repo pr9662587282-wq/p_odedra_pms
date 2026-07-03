@@ -46,6 +46,8 @@ const ProfileSchema = new mongoose.Schema(
     emergencyContactPhone: { type: String, default: "" },
 
     profileImage: { type: String, default: "" },
+    profileImageId: { type: String, default: "" },
+    profileImageVisible: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

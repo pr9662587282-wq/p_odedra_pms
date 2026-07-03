@@ -3,13 +3,11 @@ const mongoose = require("mongoose");
 const attendanceSchema = new mongoose.Schema(
   {
     userId: String,
-    date: String, // "2026-05-19" — easy to query today
-
-    checkIn: Date, // only once per day
-    checkOut: Date, // only once per day
-
-    // breaks is an ARRAY — multiple breaks allowed
-    // each break = { breakIn: Date, breakOut: Date }
+    date: String,
+    checkIn: Date,
+    checkOut: Date,
+    checkInIp: { type: String, default: "—" }, // ← ADD
+    checkOutIp: { type: String, default: "—" }, // ← ADD
     breaks: [
       {
         breakIn: Date,

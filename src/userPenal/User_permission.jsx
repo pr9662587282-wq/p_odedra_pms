@@ -217,16 +217,44 @@ function User_permission() {
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-4">
                         <div className="relative">
-                          <img
-                            className="h-12 w-12 rounded-[1.25rem] object-cover ring-4 ring-slate-50 transition-transform duration-300 group-hover:scale-110 dark:ring-slate-800"
-                            src={
-                              item.profileImage
-                                ? `data:image/png;base64,${item.profileImage}`
-                                : `https://i.pravatar.cc/100?img=${index}`
+                          {(() => {
+                            const itemVisible =
+                              item.profileImageVisible === undefined
+                                ? true
+                                : item.profileImageVisible === true ||
+                                  item.profileImageVisible === "true";
+                            const showImage =
+                              canViewProfile && itemVisible && item.profileImage;
+
+                            if (showImage) {
+                              const src =
+                                typeof item.profileImage === "string" &&
+                                (item.profileImage.startsWith("http") ||
+                                  item.profileImage.startsWith("https") ||
+                                  item.profileImage.startsWith("data:"))
+                                  ? item.profileImage
+                                  : `data:image/png;base64,${item.profileImage}`;
+
+                              return (
+                                <>
+                                  <img
+                                    className="h-12 w-12 rounded-[1.25rem] object-cover ring-4 ring-slate-50 transition-transform duration-300 group-hover:scale-110 dark:ring-slate-800"
+                                    src={src}
+                                    alt="User avatar"
+                                  />
+                                  <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-4 border-white bg-emerald-500 dark:border-slate-900"></span>
+                                </>
+                              );
                             }
-                            alt="User avatar"
-                          />
-                          <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-4 border-white bg-emerald-500 dark:border-slate-900"></span>
+
+                            return (
+                              <img
+                                className="h-12 w-12 rounded-[1.25rem] object-cover ring-4 ring-slate-50 transition-transform duration-300 group-hover:scale-110 dark:ring-slate-800"
+                                src={`https://i.pravatar.cc/100?img=${index}`}
+                                alt="User avatar"
+                              />
+                            );
+                          })()}
                         </div>
                         <div className="flex flex-col">
                           <span className="text-base font-black text-slate-800 dark:text-white">

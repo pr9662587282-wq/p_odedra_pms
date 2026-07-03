@@ -4,6 +4,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { GoogleLogin } from "@react-oauth/google";
 import { RotateCwIcon } from "lucide-react";
+import loginImage from "../assets/img3.png";
 import {
   Dialog,
   DialogContent,
@@ -49,10 +50,14 @@ export default function Login() {
         password,
       });
       const { token, user } = res.data;
+      const uid = user?._id || user?.id || res.data._id || res.data.id;
+      const cleanUid = uid ? String(uid).replace(/["']/g, "").trim() : "";
+
       localStorage.setItem("token", token);
       localStorage.setItem("role", user.role);
       localStorage.setItem("username", user.email);
-      localStorage.setItem("userId", res.data.user._id);
+      localStorage.setItem("userId", cleanUid);
+      localStorage.setItem("groupId", user.groupId || "");
       // Notify ThemeContext to fetch this user's theme from DB
       window.dispatchEvent(new StorageEvent("storage", { key: "userId" }));
       toast.success("Login successful");
@@ -75,11 +80,13 @@ export default function Login() {
       });
 
       const { token, user } = res.data;
+      const uid = user?._id || user?.id || res.data._id || res.data.id;
+      const cleanUid = uid ? String(uid).replace(/["']/g, "").trim() : "";
 
       localStorage.setItem("token", token);
       localStorage.setItem("role", user.role);
       localStorage.setItem("username", user.email);
-      localStorage.setItem("userId", user._id);
+      localStorage.setItem("userId", cleanUid);
       window.dispatchEvent(new StorageEvent("storage", { key: "userId" }));
 
       toast.success("Google login successful");
@@ -140,15 +147,18 @@ export default function Login() {
     const role = params.get("role");
     const email = params.get("email");
     const userId = params.get("userId");
+    const cleanUserId = userId
+      ? String(userId).replace(/["']/g, "").trim()
+      : "";
 
-    // Agar URL mein token aur role milte hain (yaani user LinkedIn se abhi wapas aaya hai)
+    //
     if (token && role) {
-      // 1. Bilkul Google ki tarah storage mein data set karein
+      // 1.
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
       localStorage.setItem("username", email || "");
-      localStorage.setItem("userId", userId || "");
-      // Notify ThemeContext to load this user's theme
+      localStorage.setItem("userId", cleanUserId);
+      //
       window.dispatchEvent(new StorageEvent("storage", { key: "userId" }));
 
       const provider = localStorage.getItem("provider");
@@ -159,7 +169,7 @@ export default function Login() {
         toast.success("GitHub login successful");
       }
 
-      // 2. Google login wali exact same dashboard condition:
+      // 2. Google login  dashboard condition:
       if (role === "admin") {
         navigate("/deshbaord", { replace: true });
       } else {
@@ -210,11 +220,13 @@ export default function Login() {
 
       if (res.data.success) {
         const { token, user } = res.data;
+        const uid = user?._id || user?.id || res.data._id || res.data.id;
+        const cleanUid = uid ? String(uid).replace(/["']/g, "").trim() : "";
 
         localStorage.setItem("token", token);
         localStorage.setItem("role", user.role);
         localStorage.setItem("username", user.email);
-        localStorage.setItem("userId", user._id);
+        localStorage.setItem("userId", cleanUid);
         // Notify ThemeContext to load this user's theme
         window.dispatchEvent(new StorageEvent("storage", { key: "userId" }));
 
@@ -227,8 +239,35 @@ export default function Login() {
     }
   };
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md rounded-[32px] bg-white p-8 shadow-2xl shadow-slate-200/80 ring-1 ring-slate-200">
+    //
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-blue-100 flex items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
+      {/*  */}
+      <div className="hidden md:flex md:w-[400px] md:h-[684px] w-1/2 bg-indigo-600 rounded-l-3xl rounded-r-none relative overflow-hidden">
+        <img
+          src={loginImage}
+          alt="Login"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute top-6 left-6 z-20">
+          <div className="px-4 py-1.5 bg-white/20 backdrop-blur-md border border-white/30 rounded-full flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            <span className="text-white text-xs font-semibold tracking-wide uppercase">
+              Premium Access
+            </span>
+          </div>
+        </div>
+
+        {/* Overlay */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+          <h1 className="text-white text-4xl font-bold">Sign In</h1>
+
+          <p className="mt-3 text-white text-sm">
+            Access your account and continue your journey.
+          </p>
+        </div>
+      </div>
+
+      <div className="w-full max-w-md bg-white p-8 shadow-2xl shadow-slate-200/80 ring-1 ring-slate-200 rounded-none md:rounded-r-3xl">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-3xl bg-indigo-100 text-2xl text-indigo-600">
             <span className="font-black">⌘</span>
@@ -395,31 +434,40 @@ export default function Login() {
 
         {/* PHONE POPUP */}
         {showPhonePopup && (
-          <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
-            <div className="bg-white p-6 rounded-xl w-[350px]">
-              <h2 className="text-lg font-bold mb-4">Phone Login</h2>
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+            <div className="bg-white/80 backdrop-blur-xl border border-white/50 p-8 rounded-[28px] w-full max-w-[350px] shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
+              <div className="text-center mb-6">
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Phone Login
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  We'll send a code to your mobile
+                </p>
+              </div>
 
               <input
                 type="text"
-                placeholder="Enter Phone Number"
+                placeholder="+1 (555) 000-0000"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full border p-3 rounded"
+                className="w-full border border-slate-200 bg-white/50 px-4 py-3 rounded-xl outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
               />
 
-              <button
-                onClick={sendOtp}
-                className="w-full mt-4 bg-indigo-600 text-white py-2 rounded"
-              >
-                Send OTP
-              </button>
+              <div className="space-y-3 mt-6">
+                <button
+                  onClick={sendOtp}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-xl transition shadow-lg shadow-indigo-500/20"
+                >
+                  Send OTP
+                </button>
 
-              <button
-                onClick={() => setShowPhonePopup(false)}
-                className="w-full mt-2 border py-2 rounded"
-              >
-                Cancel
-              </button>
+                <button
+                  onClick={() => setShowPhonePopup(false)}
+                  className="w-full text-slate-500 hover:text-slate-800 text-sm font-medium py-2 transition"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -453,7 +501,6 @@ export default function Login() {
               {/* Description */}
               <p className="text-center text-sm text-slate-500 mt-2">
                 We have sent a verification code to{" "}
-                <span className="font-medium text-slate-700">{email}</span>.
               </p>
 
               <p className="text-center text-sm text-slate-500">

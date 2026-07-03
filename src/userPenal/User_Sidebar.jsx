@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { io } from "socket.io-client";
 
 const navItems = [
   { label: "Dashboard", icon: "🏠", path: "/UserDeshboard" },
@@ -7,17 +8,18 @@ const navItems = [
   { label: "Leave", icon: "🗓️", path: "/leave" },
   { label: "Attendance", icon: "✅", path: "/attendance" },
   { label: "Tasks", icon: "📝", path: "/tasks" },
+  { label: "chat", icon: "🗨️", path: "/chat" },
   { label: "Logout", icon: "🚪", path: "/login" },
   { label: "User_permission", icon: "🚪", path: "/User_permission" },
 ];
 
 const profile = {
-  status: "Online",
+  status: "Active",
   team: "Product",
   projects: "Active",
 };
 
-export default function User_Sidebar({ fullName }) {
+export default function User_Sidebar({ fullName, profileImage }) {
   const email = localStorage.getItem("username") || "User Email";
   const initials = (fullName || "User")
     .split(" ")
@@ -30,37 +32,73 @@ export default function User_Sidebar({ fullName }) {
 
   const [collapse, setCollapse] = useState(false);
 
+  // Connect to socket on every page where Sidebar is present to show "Online" status
+  useEffect(() => {
+    const rawId = localStorage.getItem("userId");
+    if (!rawId || rawId === "null" || rawId === "undefined") {
+      return;
+    }
+
+    const userId = String(rawId).replace(/["']/g, "").trim();
+
+    const socket = io("http://localhost:5000");
+    socket.emit("join", userId);
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [location.pathname]); // Re-evaluate whenever path changes
+
   const handleNav = (path) => {
-    setIsOpen(false);
-    navigate(path);
     if (path === "/login") {
+      setIsOpen(false);
       localStorage.removeItem("token");
       localStorage.removeItem("role");
       localStorage.removeItem("username");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("groupId");
 
       // theme reset
       document.documentElement.setAttribute("data-theme", "light");
 
       // pura app refresh
       window.location.href = "/login";
-
       return;
     }
+
+    setIsOpen(false);
+    navigate(path);
   };
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
       {/* Profile header */}
       <div className="flex items-center gap-3 border-b border-slate-800 px-5 py-5">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white shadow-lg">
-          {initials}
-        </div>
+        {profileImage ? (
+          <img
+            src={
+              profileImage.startsWith("data:") ||
+              profileImage.startsWith("http")
+                ? profileImage
+                : `data:image/png;base64,${profileImage}`
+            }
+            alt="profile"
+            className="h-11 w-11 shrink-0 rounded-2xl object-cover shadow-lg"
+          />
+        ) : (
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white shadow-lg">
+            {initials}
+          </div>
+        )}
         {!collapse && (
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">
               {fullName || "User"}
             </p>
-            <p className="truncate text-xs text-slate-400">{email}</p>
+
+            {email && !email.endsWith("@otp.com") && (
+              <p className="truncate text-xs text-slate-400">{email}</p>
+            )}
           </div>
         )}
         {/* Close btn — mobile only */}
@@ -163,14 +201,29 @@ export default function User_Sidebar({ fullName }) {
       {/* ── Mobile top bar ── */}
       <header className="fixed inset-x-0 top-0 z-40 flex items-center justify-between bg-slate-950 px-4 py-3 shadow-lg md:hidden">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold text-white">
-            {initials}
-          </div>
+          {profileImage ? (
+            <img
+              src={
+                profileImage.startsWith("data:") ||
+                profileImage.startsWith("http")
+                  ? profileImage
+                  : `data:image/png;base64,${profileImage}`
+              }
+              alt="profile"
+              className="h-9 w-9 rounded-xl object-cover"
+            />
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold text-white">
+              {initials}
+            </div>
+          )}
           <div>
             <p className="text-[10px] uppercase tracking-widest text-slate-400">
               User Panel
             </p>
-            <p className="text-sm font-semibold text-white">{fullName || "User"}</p>
+            <p className="text-sm font-semibold text-white">
+              {fullName || "User"}
+            </p>
           </div>
         </div>
         <button

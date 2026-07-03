@@ -10,7 +10,26 @@ const JWT_SECRET = process.env.JWT_SECRET || "secret123";
 const { OAuth2Client } = require("google-auth-library");
 exports.createUser = async (req, res) => {
   try {
-    const { email, password, permissions } = req.body;
+    const { email, password, permissions, groupId: bodyGroupId } = req.body;
+
+    // Support optional admin-auth token on public register route.
+    let requestGroupId = bodyGroupId || null;
+    if (!req.user) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.split(" ")[1];
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET);
+          req.user = decoded;
+        } catch (_) {
+          // ignore invalid token, continue with public registration
+        }
+      }
+    }
+
+    if (req.user?.role === "admin") {
+      requestGroupId = req.user.groupId || null;
+    }
 
     const existingUser = await User.findOne({
       email: email.trim().toLowerCase(),
@@ -24,11 +43,15 @@ exports.createUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await User.create({
+    const userPayload = {
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       role: "user",
-    });
+    };
+
+    if (requestGroupId) userPayload.groupId = requestGroupId;
+
+    const newUser = await User.create(userPayload);
 
     const finalPermissions = {
       profile: {
@@ -48,6 +71,7 @@ exports.createUser = async (req, res) => {
 
     const userPermissions = await Permission.create({
       userId: newUser._id,
+      groupId: newUser.groupId || requestGroupId || null,
       ...finalPermissions,
     });
     //  msg send to user permssion are apply
@@ -83,7 +107,7 @@ exports.createUser = async (req, res) => {
     const permissionMessage = appliedPermissions.join(", ");
 
     res.status(201).json({
-      message: `User ${newUser.email} registered successfully}`,
+      message: `User ${newUser.email} registered successfully`,
       user: {
         id: newUser._id,
         email: newUser.email,
@@ -102,7 +126,10 @@ exports.getUserPermission = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    let permission = await Permission.findOne({ userId });
+    let permission = await Permission.findOne({
+      userId,
+      groupId: req.user.groupId,
+    });
 
     if (!permission) {
       permission = await Permission.create({
@@ -135,7 +162,7 @@ exports.updateUserPermission = async (req, res) => {
     const { permissions } = req.body;
 
     const updatedPermission = await Permission.findOneAndUpdate(
-      { userId },
+      { userId, groupId: req.user.groupId },
       {
         profile: {
           viewer: true,
@@ -188,6 +215,7 @@ exports.login = async (req, res) => {
         id: user._id,
         email: user.email,
         role: user.role,
+        groupId: user.groupId,
       },
       JWT_SECRET,
       { expiresIn: "1d" },
@@ -200,6 +228,7 @@ exports.login = async (req, res) => {
         id: user._id,
         email: user.email,
         role: user.role,
+        groupId: user.groupId,
       },
       permissions,
     });
@@ -259,20 +288,25 @@ exports.googleLogin = async (req, res) => {
       });
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      { id: user._id, role: user.role, groupId: user.groupId },
+      JWT_SECRET,
+      { expiresIn: "7d" },
+    );
 
-    return res.json({ token, user });
+    return res.json({
+      token,
+      user: { ...user.toObject(), groupId: user.groupId },
+    });
   } catch (error) {
-    console.error("🔥 Google Login Error:", error.message);
+    console.error(" Google Login Error:", error.message);
     return res.status(500).json({
       message: "Google Login Failed",
       error: error.message,
     });
   }
 };
-// 🔥 LINKEDIN CALLBACK CONTROLLER
+//  LINKEDIN CALLBACK CONTROLLER
 exports.redirectToLinkedIn = (req, res) => {
   const CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
   const REDIRECT_URI = "http://localhost:5000/auth/linkedin/callback";
@@ -335,7 +369,12 @@ exports.linkedinCallbackController = async (req, res) => {
 
     // Step D: App JWT Token Generation
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        groupId: user.groupId,
+      },
       JWT_SECRET,
       { expiresIn: "1d" },
     );
@@ -377,7 +416,7 @@ exports.githubCallbackController = async (req, res) => {
   }
 
   try {
-    // 🅰️ Step A: Code ko GitHub Access Token ke sath exchange karein
+    //  Step A: Code ko GitHub Access Token ke sath exchange karein
     const tokenResponse = await axios.post(
       "https://github.com/login/oauth/access_token",
       {
@@ -395,7 +434,7 @@ exports.githubCallbackController = async (req, res) => {
       return res.status(400).send("Failed to obtain access token from GitHub.");
     }
 
-    // 🅱️ Step B: Access Token se GitHub User Profile data mangwayein
+    //  Step B: Access Token se GitHub User Profile data mangwayein
     const userResponse = await axios.get("https://api.github.com/user", {
       headers: { Authorization: `token ${accessToken}` },
     });
@@ -404,7 +443,7 @@ exports.githubCallbackController = async (req, res) => {
     let email = githubUser.email;
     const name = githubUser.name || githubUser.login; // Agar naam na ho toh username utha lo
 
-    // 🚨 GitHub par kabhi-kabhi email 'null' aata hai agar user ne private rakha ho.
+    // GitHub par kabhi-kabhi email 'null' aata hai agar user ne private rakha ho.
     // Uske liye ek alag email endpoint par request marni padti hai:
     if (!email) {
       const emailResponse = await axios.get(
@@ -439,14 +478,19 @@ exports.githubCallbackController = async (req, res) => {
       });
     }
 
-    // 🅳 Step D: Apni App ka Custom JWT Token banaein
+    //  Step D: Apni App ka Custom JWT Token banaein
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        groupId: user.groupId,
+      },
       JWT_SECRET,
       { expiresIn: "1d" },
     );
 
-    // 🅴 Step E: User ko Frontend ke '/auth-success' route par redirect karein (LinkedIn ki tarah)
+    //  Step E: User ko Frontend ke '/auth-success' route par redirect karein (LinkedIn ki tarah)
     res.redirect(
       `http://localhost:5173/auth-success?token=${token}&role=${user.role}&userId=${user._id}&email=${user.email}`,
     );
@@ -524,8 +568,8 @@ exports.verifyOtp = async (req, res) => {
 
     // 4. Generate Token
     const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET, // Use environment variables!
+      { id: user._id, role: user.role, groupId: user.groupId },
+      JWT_SECRET,
       { expiresIn: "1d" },
     );
 
@@ -547,7 +591,10 @@ exports.verifyOtp = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
-    const permissions = await Permission.findOne({ userId: req.user.id });
+    const permissions = await Permission.findOne({
+      userId: req.user.id,
+      groupId: req.user.groupId,
+    });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });

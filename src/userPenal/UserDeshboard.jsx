@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import User_Sidebar from "./User_Sidebar";
 import { Calendar } from "@/components/ui/calendar";
@@ -7,6 +8,14 @@ import { useTheme } from "../Theme/ThemeContext";
 import { useParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import Sidebar_Admin from "../admin_penal/Sidebar_Admin";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 
 ////
 import logo from "../assets/photo-1624770802806-5df97af960b6.png";
@@ -26,6 +35,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import {
+  User,
+  Settings,
+  LifeBuoy,
+  LogOut,
+  ChevronRight,
+  Lock,
+  Camera,
+  Moon,
+  Sun,
+} from "lucide-react";
+
 /////
 // Token + config
 const getToken = () => localStorage.getItem("token");
@@ -113,6 +134,7 @@ function formatShiftBanner(shift) {
 }
 
 export default function UserDeshboard() {
+  const [email, setEmail] = useState(localStorage.getItem("username") || "");
   const { id } = useParams();
   const location = useLocation();
   const fromAdmin = location.state?.fromAdmin;
@@ -125,6 +147,7 @@ export default function UserDeshboard() {
   const [loading, setLoading] = useState("");
   const [msg, setMsg] = useState("");
   const now = useLiveClock();
+  const navigate = useNavigate();
 
   const role = localStorage.getItem("role");
   const isAdmin = role === "admin";
@@ -136,7 +159,7 @@ export default function UserDeshboard() {
 
   const totalHours = 8.5;
 
-  let workedHours = 0;
+  /* let workedHours = 0;
 
   if (record?.checkIn && record?.checkOut) {
     const inTime = new Date(record.checkIn);
@@ -156,12 +179,34 @@ export default function UserDeshboard() {
     workedHours = totalWorked - breakHours;
   }
 
+  const attendancePercent = Math.round((workedHours / totalHours) * 100);*/
+
+  // REPLACE with this — reads from breaks array correctly:
+  let workedHours = 0;
+
+  if (record?.checkIn && record?.checkOut) {
+    const inTime = new Date(record.checkIn);
+    const outTime = new Date(record.checkOut);
+    const totalWorked = (outTime - inTime) / 3600000;
+
+    // sum ALL completed breaks from the breaks array
+    let breakHours = 0;
+    const breaks = record?.breaks || [];
+    breaks.forEach((b) => {
+      if (b.breakIn && b.breakOut) {
+        breakHours += (new Date(b.breakOut) - new Date(b.breakIn)) / 3600000;
+      }
+    });
+
+    workedHours = totalWorked - breakHours;
+  }
+
   const attendancePercent = Math.round((workedHours / totalHours) * 100);
   // Current 9 AM → next day 9 AM shift from DB
   const fetchToday = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/attendance/today/${id}`,
+        `http://localhost:5000/attendance/today/${userId}`,
         getConfig(),
       );
       setRecord(res.data.record);
@@ -194,7 +239,7 @@ export default function UserDeshboard() {
   useEffect(() => {
     fetchToday();
     fetchBirthdays();
-  }, [id]);
+  }, [userId]);
 
   // Refetch every minute so when the clock crosses 9 AM the new shift shows without reload
   useEffect(() => {
@@ -332,6 +377,11 @@ export default function UserDeshboard() {
   const logs = buildLogs();
   const { theme, toggleTheme } = useTheme();
   const [fullName, setFullName] = useState("");
+  const [profileImage, setProfileImage] = useState(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [passwords, setPasswords] = useState({ current: "", new: "" });
+  const [isUpdating, setIsUpdating] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const fetchName = async () => {
@@ -344,7 +394,7 @@ export default function UserDeshboard() {
         const url =
           id && id !== "undefined"
             ? `http://localhost:5000/profile/${id}`
-            : "http://localhost:5000/get-username";
+            : "http://localhost:5000/profile/me";
 
         const res = await axios.get(url, getConfig());
 
@@ -357,6 +407,9 @@ export default function UserDeshboard() {
           "User";
 
         setFullName(name);
+        setProfileImage(
+          profileData.profileImage || res.data.profileImage || null,
+        );
       } catch (err) {
         console.error("Error fetching dashboard name:", err);
         // Only fallback to "User" if we don't already have a name from state
@@ -366,13 +419,70 @@ export default function UserDeshboard() {
     fetchName();
   }, [id, fromAdmin, adminViewedFullName]);
 
+  const handleProfilePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setIsUpdating(true);
+      const formData = new FormData();
+      formData.append("profileImage", file);
+      const url = "http://localhost:5000/profile/me";
+
+      const res = await axios({
+        method: "post",
+        url,
+        data: formData,
+        headers: {
+          ...getConfig().headers,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (res.data.success) {
+        setProfileImage(res.data.profile.profileImage);
+        setMsg("✅ Profile image updated");
+        setTimeout(() => setMsg(""), 3000);
+      }
+    } catch (err) {
+      setMsg("❌ Upload failed");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    try {
+      setIsUpdating(true);
+
+      const res = await axios.put("http://localhost:5000/forgetPassword", {
+        email: localStorage.getItem("username"),
+        newPassword: passwords.new,
+      });
+
+      setMsg(" " + res.data.message);
+      toast.success("change password successfully");
+
+      // alert("change password successfully ");
+      setPasswords({ current: "", new: "" });
+    } catch (err) {
+      console.log(err.response?.data);
+      setMsg(" " + (err.response?.data?.message || "Error updating password"));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
   const handleAttendanceAction = (action) => {
     if (isAdminView) {
-      setMsg("❌ Admin view only. Attendance cannot be modified.");
+      setMsg("Admin view only. Attendance cannot be modified.");
       return;
     }
 
     action();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
   };
 
   return (
@@ -386,65 +496,232 @@ export default function UserDeshboard() {
               variant="outline border-none"
               className="gap-2 relative md:top-[86px] w-fit top-[166px] left-[340px] md:left-[1290px] flex z-50"
             >
-              {" "}
-              <img
-                src={logo}
-                alt="profile"
-                className=" h-10 w-10 rounded-full object-cover"
-              />{" "}
+              {profileImage ? (
+                <img
+                  src={
+                    profileImage.startsWith("data:") ||
+                    profileImage.startsWith("http")
+                      ? profileImage
+                      : `data:image/png;base64,${profileImage}`
+                  }
+                  alt="profile"
+                  className="h-10 w-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white">
+                  {fullName
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2) || "U"}
+                </div>
+              )}
               <span className="text-sm hidden md:block ">
                 <h1> {fullName}</h1>
               </span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className=" card w-56 h-64  relative md:top-[30px] md:right-6">
-            <DropdownMenuLabel className="flex items-center gap-2  ">
-              <Avatar>
+          <DropdownMenuContent className="w-64 rounded-2xl border bg-white p-2 shadow-xl md:top-[30px] md:right-6">
+            <DropdownMenuLabel className="flex items-center gap-3 p-2">
+              <Avatar className="h-11 w-11 ring-2 ring-slate-100">
                 <AvatarImage
-                  src="https://cdn.shadcnstudio.com/ss-assets/avatar/avatar-1.png"
-                  alt="Phillip George"
+                  src={
+                    profileImage?.startsWith("data:") ||
+                    profileImage?.startsWith("http")
+                      ? profileImage
+                      : profileImage
+                        ? `data:image/png;base64,${profileImage}`
+                        : ""
+                  }
+                  alt={fullName}
                 />
-                <AvatarFallback className="text-xs">PG</AvatarFallback>
+                <AvatarFallback className="text-xs">
+                  {fullName
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2) || "U"}
+                </AvatarFallback>
               </Avatar>
-              <div className="flex flex-1 flex-col">
-                <span className="text-popover-foreground">{fullName}</span>
-                <span className="text-muted-foreground text-xs space-y-4">
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <span className="text-sm font-bold text-slate-800 truncate">
+                  {fullName}
+                </span>
+                <span className="text-[10px] text-slate-400 truncate">
                   {localStorage.getItem("username") || "No Email"}
                 </span>
               </div>
             </DropdownMenuLabel>
 
             <DropdownMenuSeparator />
-            <hr></hr>
-            <DropdownMenuGroup className="space-y-4 ">
-              <DropdownMenuItem>📝 Edit Profile</DropdownMenuItem>
-              <DropdownMenuItem>⚙️ Account settings </DropdownMenuItem>
-              <DropdownMenuItem>🛠️ support</DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuSub>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>More...</DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
-              <hr></hr>
 
-              <DropdownMenuItem> ⇦log out</DropdownMenuItem>
+            <DropdownMenuGroup className="space-y-1">
+              <DropdownMenuItem
+                onClick={() => navigate("/profile")}
+                className="flex cursor-pointer items-center justify-between rounded-xl p-3 hover:bg-slate-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <User size={18} className="text-slate-500" />
+                  <span className="font-medium">My Profile</span>
+                </div>
+                <ChevronRight size={14} className="text-slate-300" />
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => setIsSettingsOpen(true)}
+                className="flex cursor-pointer items-center justify-between rounded-xl p-3 hover:bg-slate-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Settings size={18} className="text-slate-500" />
+                  <span className="font-medium">Account Settings</span>
+                </div>
+                <ChevronRight size={14} className="text-slate-300" />
+              </DropdownMenuItem>
+
+              <DropdownMenuItem className="flex cursor-pointer items-center justify-between rounded-xl p-3 hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <LifeBuoy size={18} className="text-slate-500" />
+                  <span className="font-medium">Support</span>
+                </div>
+                <ChevronRight size={14} className="text-slate-300" />
+              </DropdownMenuItem>
             </DropdownMenuGroup>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="flex cursor-pointer items-center gap-3 rounded-xl p-3 text-rose-500 hover:bg-rose-50 transition-colors"
+            >
+              <LogOut size={18} />
+              <span className="font-bold">Logout</span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* Floating Theme Toggle (Dashboard Icon) */}
         <button
           type="button"
           onClick={toggleTheme}
-          className="flex relative top-32 left-72 z-50 h-11 w-11  items-center justify-center rounded-full bg-slate-200 text-lg transition hover:bg-slate-300 md:absolute md:top-20 md:left-[1240px] "
+          className="flex relative top-32 left-72 z-50 h-11 w-11 items-center justify-center rounded-full bg-slate-300 text-lg transition hover:bg-slate-300 md:absolute md:top-[80px] md:left-[1240px] md:bottom-20"
         >
-          🌙
+          {theme === "dark" ? (
+            <Sun size={20} className="text-amber-500" />
+          ) : (
+            <Moon size={20} className="text-amber-500" />
+          )}
         </button>
+
+        {/* Modern Account Settings Popup */}
+        <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+          <DialogContent className="fixed md:top-24 md:right-4 top-40 left-auto right-4 translate-x-0 translate-y-0 w-80 max-w-[90vw] rounded-[2rem] p-4 bg-white border-none shadow-2xl animate-in slide-in-from-top-2 duration-300 z-[100]">
+            <DialogHeader className="px-2 mb-2">
+              <DialogTitle className="text-base font-black text-slate-800 tracking-tight">
+                Account Settings
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Profile Icon Change Section */}
+              <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-11 w-11 border-2 border-white shadow-sm">
+                    <AvatarImage
+                      src={
+                        profileImage &&
+                        (profileImage.startsWith("data:") ||
+                          profileImage.startsWith("http"))
+                          ? profileImage
+                          : profileImage
+                            ? `data:image/png;base64,${profileImage}`
+                            : ""
+                      }
+                    />
+                    <AvatarFallback className="bg-indigo-600 text-white text-xs font-bold uppercase">
+                      {fullName?.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-slate-700 leading-none">
+                      Profile Icon
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium mt-1">
+                      Tap to change
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => fileInputRef.current.click()}
+                  disabled={isUpdating}
+                  className="h-9 w-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
+                >
+                  <Camera size={16} />
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleProfilePhotoUpload}
+                />
+              </div>
+
+              <div className="h-px bg-slate-100 mx-2" />
+
+              {/* Security Section */}
+              <div className="space-y-2 px-2">
+                <div className="relative group"></div>
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 size-4 group-focus-within:text-indigo-500" />
+                  <Input
+                    value={passwords.new}
+                    onChange={(e) =>
+                      setPasswords({ ...passwords, new: e.target.value })
+                    }
+                    type="password"
+                    placeholder="New Password"
+                    className="h-10 pl-9 rounded-xl bg-slate-50 border-slate-100 text-xs focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all"
+                  />
+                </div>
+                <Button
+                  onClick={handlePasswordUpdate}
+                  disabled={isUpdating}
+                  className="w-full h-10 rounded-xl bg-slate-900 text-white text-[10px] font-black tracking-widest uppercase shadow-lg shadow-slate-200 transition-all active:scale-95"
+                >
+                  {isUpdating ? "..." : "Update Password"}
+                </Button>
+              </div>
+
+              <div className="h-px bg-slate-100 mx-2" />
+
+              {/* Appearance Section */}
+              <div className="flex items-center justify-between p-2 rounded-2xl bg-indigo-50/30 border border-indigo-100/50">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all ${theme === "dark" ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" : "bg-white text-amber-500 shadow-sm border border-slate-100"}`}
+                  >
+                    {theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}
+                  </div>
+                  <span className="text-sm font-bold text-slate-700">
+                    Dark Mode
+                  </span>
+                </div>
+                <Switch
+                  checked={theme === "dark"}
+                  onCheckedChange={toggleTheme}
+                  className="
+    scale-90
+    data-[state=checked]:bg-indigo-600
+    data-[state=unchecked]:bg-black
+  "
+                />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <div className="px-4 pb-10 pt-20 md:px-8 md:pt-8">
           {/* Title */}
           <div className="mb-6">

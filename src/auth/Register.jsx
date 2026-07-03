@@ -32,13 +32,20 @@ export default function Register({ isModal = false, onClose }) {
       setpassErrShow("Password must be 8+ chars, number & special char ❌");
       return;
     }
+    const token = localStorage.getItem("token");
     axios
-      .post("http://localhost:5000/register", {
-        email,
-        password,
-        role: "user",
-        permissions,
-      })
+      .post(
+        "http://localhost:5000/register",
+        {
+          email,
+          password,
+          role: "user",
+          permissions,
+        },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        },
+      )
       .then((res) => {
         setMessage(res.data.message);
         setShowAlert(true);

@@ -174,8 +174,8 @@ export default function User_profile_Edit() {
         // Viewing another user's profile (admin view or permitted user)
         url = `http://localhost:5000/profile/${id}`;
       } else {
-        // Viewing own profile — use the dedicated /profile/my endpoint
-        url = "http://localhost:5000/profile/my";
+        // Viewing own profile — use the dedicated /profile/me endpoint
+        url = "http://localhost:5000/profile/me";
       }
       const res = await axios.get(url, config());
       setUser(res.data.profile || {});
@@ -189,15 +189,18 @@ export default function User_profile_Edit() {
     if (!file) return;
     try {
       setPhotoLoading(true);
-      // If viewing another user's profile use their id, else use own userId
-      const targetId = id || localStorage.getItem("userId");
-      const url = `http://localhost:5000/profile/${targetId}`;
+      // If viewing another user's profile use their id, else update the current user's own profile
+      const url = id
+        ? `http://localhost:5000/profile/${id}`
+        : "http://localhost:5000/profile/me";
       const data = new FormData();
       data.append("profileImage", file);
-      const res = await axios.put(url, data, {
+      const res = await axios({
+        method: id ? "put" : "post",
+        url,
+        data,
         headers: {
           Authorization: `Bearer ${token()}`,
-          "Content-Type": "multipart/form-data",
         },
       });
       if (res.data.success) {

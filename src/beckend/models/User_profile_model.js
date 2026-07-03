@@ -50,6 +50,17 @@ const userProfileSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+
+  // Cloudinary public id for the uploaded image — used to delete/replace images
+  profileImageId: {
+    type: String,
+    default: null,
+  },
+  // Whether this user's profile image should be visible to other users/lists
+  profileImageVisible: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 module.exports = mongoose.model("UserProfile", userProfileSchema);

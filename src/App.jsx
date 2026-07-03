@@ -19,6 +19,9 @@ import Edit_basic_profile from "./userPenal/Edit_basic_profile";
 import User_permission from "./userPenal/User_permission";
 import Access_user_dashboard from "./admin_penal/Access_user_deshbaord";
 
+import Chat from "./userPenal/Chat";
+import Admin_Leave_Panel from "./admin_penal/Admin_Leave_Panel";
+
 // 💡 LinkedInCallback import ki ab zaroorat nahi hai kyunki hum Login file use kar rahe hain
 
 import { Toaster } from "sonner";
@@ -55,6 +58,7 @@ function App() {
             <Route path="/attendance/:id" element={<Attendance_show />} />
             <Route path="/tasks" element={<Task_show />} />
             <Route path="/tasks/:id" element={<Task_show />} />
+            <Route path="/leaves" element={<Admin_Leave_Panel />} />
 
             <Route path="/User_permission" element={<User_permission />} />
             <Route
@@ -69,6 +73,7 @@ function App() {
               path="/Access_user_dashboard"
               element={<Access_user_dashboard />}
             />
+            <Route path="/chat" element={<Chat />} />
 
             {/* 🚨 Catch-all/Wildcard route humesha sabse AAKHRI mein hona chahiye */}
             <Route path="*" element={<Navigate to="/register" replace />} />

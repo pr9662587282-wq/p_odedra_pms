@@ -26,6 +26,14 @@ const permissionSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+
+    // gruop by
+    groupId: {
+      type: String,
+      required: false,
+      default: null,
+      index: true, // Search speed ke liye index
+    },
     profile: {
       type: modulePermissionSchema,
       default: () => ({

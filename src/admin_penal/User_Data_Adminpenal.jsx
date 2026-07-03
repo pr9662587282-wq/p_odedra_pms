@@ -31,6 +31,7 @@ function User_Data_Adminpenal() {
   });
   const [showPermissionPopup, setShowPermissionPopup] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [popupPermissions, setPopupPermissions] = useState(null);
 
   const handlePermissionChange = (moduleName, permissionName, checked) => {
     setPermissions({
@@ -40,6 +41,15 @@ function User_Data_Adminpenal() {
         [permissionName]: checked,
       },
     });
+  };
+  const handlePopupPermissionChange = (moduleName, permissionName, checked) => {
+    setPopupPermissions((prev) => ({
+      ...prev,
+      [moduleName]: {
+        ...((prev && prev[moduleName]) || {}),
+        [permissionName]: checked,
+      },
+    }));
   };
   const openPermissionPopup = async (item) => {
     try {
@@ -56,12 +66,19 @@ function User_Data_Adminpenal() {
         },
       );
 
+      // include profile image info so permission popup can display avatar
       setSelectedUser({
         id: userId,
         name: item.fullName || item.personalEmail || "User",
+        profileImage: item.profileImage,
+        profileImageVisible:
+          item.profileImageVisible === undefined
+            ? true
+            : item.profileImageVisible,
       });
 
-      setPermissions({
+      // Keep current user's `permissions` intact; store the target user's permissions separately for the popup
+      setPopupPermissions({
         profile: {
           viewer: res.data.profile?.viewer ?? true,
           editor: res.data.profile?.editor ?? false,
@@ -87,10 +104,9 @@ function User_Data_Adminpenal() {
   const savePermission = async () => {
     try {
       const token = localStorage.getItem("token");
-
       await axios.put(
         `http://localhost:5000/permissions/${selectedUser.id}`,
-        { permissions },
+        { permissions: popupPermissions },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -101,6 +117,7 @@ function User_Data_Adminpenal() {
       alert("Permissions updated successfully");
       setShowPermissionPopup(false);
       setSelectedUser(null);
+      setPopupPermissions(null);
     } catch (error) {
       console.log(error);
       alert("Permission update failed");
@@ -126,6 +143,23 @@ function User_Data_Adminpenal() {
 
   useEffect(() => {
     ShowData();
+    // fetch current user's permission to determine whether to show images
+    const token = localStorage.getItem("token");
+    axios
+      .get("http://localhost:5000/my-permission", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        setPermissions((prev) => ({
+          ...prev,
+          profile: {
+            viewer: res.data.profile?.viewer ?? true,
+            editor: res.data.profile?.editor ?? false,
+            deletePermission: res.data.profile?.deletePermission ?? false,
+          },
+        }));
+      })
+      .catch((err) => console.log(err));
   }, []);
 
   return (
@@ -140,13 +174,52 @@ function User_Data_Adminpenal() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900">
-                  Update Permissions
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  {selectedUser?.name}
-                </p>
+              <div className="flex items-center gap-3">
+                <div>
+                  {(() => {
+                    const canView = permissions.profile?.viewer ?? true;
+                    const itemVisible =
+                      selectedUser?.profileImageVisible === undefined
+                        ? true
+                        : selectedUser?.profileImageVisible === true ||
+                          selectedUser?.profileImageVisible === "true";
+                    const showImage =
+                      canView && itemVisible && selectedUser?.profileImage;
+
+                    if (showImage) {
+                      const src =
+                        typeof selectedUser.profileImage === "string" &&
+                        (selectedUser.profileImage.startsWith("http") ||
+                          selectedUser.profileImage.startsWith("https") ||
+                          selectedUser.profileImage.startsWith("data:"))
+                          ? selectedUser.profileImage
+                          : `data:image/png;base64,${selectedUser.profileImage}`;
+
+                      return (
+                        <img
+                          className="h-12 w-12 rounded-2xl object-cover ring-2 ring-slate-100 dark:ring-slate-800"
+                          src={src}
+                          alt="User avatar"
+                        />
+                      );
+                    }
+
+                    return (
+                      <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-white text-xl font-bold">
+                        {selectedUser?.name?.charAt(0)?.toUpperCase() || "U"}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">
+                    Update Permissions
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {selectedUser?.name}
+                  </p>
+                </div>
               </div>
 
               <button
@@ -167,12 +240,17 @@ function User_Data_Adminpenal() {
 
               <div className="grid grid-cols-4 items-center px-4 py-3 text-sm border-t">
                 <span>Profile</span>
-                <input type="checkbox" checked disabled className="mx-auto" />
                 <input
                   type="checkbox"
-                  checked={permissions.profile.editor}
+                  checked={popupPermissions?.profile?.viewer ?? true}
+                  disabled
+                  className="mx-auto"
+                />
+                <input
+                  type="checkbox"
+                  checked={popupPermissions?.profile?.editor ?? false}
                   onChange={(e) =>
-                    handlePermissionChange(
+                    handlePopupPermissionChange(
                       "profile",
                       "editor",
                       e.target.checked,
@@ -182,9 +260,9 @@ function User_Data_Adminpenal() {
                 />
                 <input
                   type="checkbox"
-                  checked={permissions.profile.deletePermission}
+                  checked={popupPermissions?.profile?.deletePermission ?? false}
                   onChange={(e) =>
-                    handlePermissionChange(
+                    handlePopupPermissionChange(
                       "profile",
                       "deletePermission",
                       e.target.checked,
@@ -198,9 +276,9 @@ function User_Data_Adminpenal() {
                 <span>Attendance</span>
                 <input
                   type="checkbox"
-                  checked={permissions.attendance.viewer}
+                  checked={popupPermissions?.attendance?.viewer ?? false}
                   onChange={(e) =>
-                    handlePermissionChange(
+                    handlePopupPermissionChange(
                       "attendance",
                       "viewer",
                       e.target.checked,
@@ -210,9 +288,9 @@ function User_Data_Adminpenal() {
                 />
                 <input
                   type="checkbox"
-                  checked={permissions.attendance.editor}
+                  checked={popupPermissions?.attendance?.editor ?? false}
                   onChange={(e) =>
-                    handlePermissionChange(
+                    handlePopupPermissionChange(
                       "attendance",
                       "editor",
                       e.target.checked,
@@ -227,17 +305,17 @@ function User_Data_Adminpenal() {
                 <span>Task</span>
                 <input
                   type="checkbox"
-                  checked={permissions.task.viewer}
+                  checked={popupPermissions?.task?.viewer ?? false}
                   onChange={(e) =>
-                    handlePermissionChange("task", "viewer", e.target.checked)
+                    handlePopupPermissionChange("task", "viewer", e.target.checked)
                   }
                   className="mx-auto"
                 />
                 <input
                   type="checkbox"
-                  checked={permissions.task.editor}
+                  checked={popupPermissions?.task?.editor ?? false}
                   onChange={(e) =>
-                    handlePermissionChange("task", "editor", e.target.checked)
+                    handlePopupPermissionChange("task", "editor", e.target.checked)
                   }
                   className="mx-auto"
                 />
@@ -314,16 +392,44 @@ function User_Data_Adminpenal() {
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-4">
                       <div className="relative">
-                        <img
-                          className="h-11 w-11 rounded-2xl object-cover ring-2 ring-slate-100 dark:ring-slate-800"
-                          src={
-                            item.profileImage
-                              ? `data:image/png;base64,${item.profileImage}`
-                              : `https://i.pravatar.cc/100?img=${index}`
+                        {/** Determine whether current user can view profile images and whether this profile allows visibility **/}
+                        {(() => {
+                          const canView = permissions.profile?.viewer ?? true;
+                          const itemVisible =
+                            item.profileImageVisible === undefined
+                              ? true
+                              : item.profileImageVisible === true ||
+                                item.profileImageVisible === "true";
+                          const showImage =
+                            canView && itemVisible && item.profileImage;
+
+                          if (showImage) {
+                            const src =
+                              typeof item.profileImage === "string" &&
+                              (item.profileImage.startsWith("http") ||
+                                item.profileImage.startsWith("https") ||
+                                item.profileImage.startsWith("data:"))
+                                ? item.profileImage
+                                : `data:image/png;base64,${item.profileImage}`;
+                            return (
+                              <>
+                                <img
+                                  className="h-11 w-11 rounded-2xl object-cover ring-2 ring-slate-100 dark:ring-slate-800"
+                                  src={src}
+                                  alt="User avatar"
+                                />
+                                <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900"></span>
+                              </>
+                            );
                           }
-                          alt="User avatar"
-                        />
-                        <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900"></span>
+
+                          // fallback: show initial avatar block
+                          return (
+                            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-white text-xl font-bold">
+                              {item.fullName?.charAt(0)?.toUpperCase() || "U"}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-base font-black text-slate-800 dark:text-white">

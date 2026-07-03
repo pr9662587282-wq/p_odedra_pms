@@ -2,6 +2,8 @@ const Profile = require("../models/Profile");
 const User = require("../models/User");
 const UserFrom = require("../models/User_fromdata");
 const mongoose = require("mongoose");
+const cloudinary = require("../config/cloudinary");
+const streamifier = require("streamifier");
 
 // SAVE / UPDATE PROFILE
 
@@ -9,30 +11,78 @@ const saveProfile = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    let imageBase64 = null;
-
-    //  Multer file handling
-    if (req.file) {
-      imageBase64 = req.file.buffer.toString("base64");
-    }
-
+    // Find existing profile first so we can delete old cloud image after successful upload
     const existingProfile = await Profile.findOne({ userId });
+
+    let profileImageUrl = null;
+    let profileImageId = null;
+
+    // Cloudinary file upload handling (only if a new file provided)
+    if (req.file) {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            {
+              folder: "profile_images",
+              public_id: `profile_${userId}_${Date.now()}`,
+              resource_type: "auto",
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            },
+          );
+          streamifier.createReadStream(req.file.buffer).pipe(stream);
+        });
+
+        profileImageUrl = result.secure_url;
+        profileImageId = result.public_id;
+
+        // If there was an old image in Cloudinary, remove it now
+        if (existingProfile && existingProfile.profileImageId) {
+          try {
+            await cloudinary.uploader.destroy(existingProfile.profileImageId, {
+              resource_type: "image",
+            });
+          } catch (destroyErr) {
+            console.log("Cloudinary destroy error:", destroyErr);
+            // Non-fatal — continue
+          }
+        }
+      } catch (uploadError) {
+        console.log("Cloudinary upload error:", uploadError);
+        return res.status(500).json({
+          success: false,
+          message: "Error uploading image to cloud storage",
+        });
+      }
+    }
 
     let profile;
 
+    // Coerce boolean visibility flag if present in request body
+    const payload = { ...req.body };
+    if (payload.profileImageVisible !== undefined) {
+      payload.profileImageVisible =
+        payload.profileImageVisible === "true" ||
+        payload.profileImageVisible === true;
+    }
+
     if (!existingProfile) {
       profile = await Profile.create({
-        ...req.body,
+        ...payload,
         userId,
-        profileImage: imageBase64,
+        ...(profileImageUrl && { profileImage: profileImageUrl }),
+        ...(profileImageId && { profileImageId }),
       });
     } else {
       profile = await Profile.findOneAndUpdate(
         { userId },
         {
           $set: {
-            ...req.body,
-            ...(imageBase64 && { profileImage: imageBase64 }),
+            ...payload,
+            ...(profileImageUrl && { profileImage: profileImageUrl }),
+            ...(profileImageId && { profileImageId }),
           },
         },
         { new: true },
@@ -137,7 +187,7 @@ const getMyProfile = async (req, res) => {
             profile && typeof profile.toObject === "function"
               ? profile.toObject()
               : {};
-          const profile = {
+          const profileData = {
             ...plainProfile,
             fullName: fromData.fullname || plainProfile.fullName,
             fullname: fromData.fullname || plainProfile.fullname,
@@ -195,14 +245,29 @@ const getMySimpleProfile = async (req, res) => {
 
 const getAllProfiles = async (req, res) => {
   try {
-    const users = await Profile.find();
+    // Super Admin
+    if (req.user.role === "admin" && !req.user.groupId) {
+      const profiles = await Profile.find();
+      return res.json(profiles);
+    }
 
-    res.status(200).json(users);
-  } catch (error) {
+    // Group Admin / User
+    const users = await User.find({
+      groupId: req.user.groupId,
+    });
+
+    const userIds = users.map((u) => u._id);
+
+    const profiles = await Profile.find({
+      userId: { $in: userIds },
+    });
+
+    return res.json(profiles);
+  } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Server error" });
   }
 };
-
 const updateProfilePermissions = async (req, res) => {
   try {
     const { id } = req.params; // This `id` is the user's _id from the frontend
@@ -329,26 +394,74 @@ const saveProfileById = async (req, res) => {
       }
     }
 
-    let imageBase64 = null;
+    // Find existing profile first
+    let profile = await Profile.findOne({ userId: id });
+
+    let profileImageUrl = null;
+    let profileImageId = null;
+
     if (req.file) {
-      imageBase64 = req.file.buffer.toString("base64");
+      try {
+        const result = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            {
+              folder: "profile_images",
+              public_id: `profile_${id}_${Date.now()}`,
+              resource_type: "auto",
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            },
+          );
+          streamifier.createReadStream(req.file.buffer).pipe(stream);
+        });
+
+        profileImageUrl = result.secure_url;
+        profileImageId = result.public_id;
+
+        // Delete old image if exists
+        if (profile && profile.profileImageId) {
+          try {
+            await cloudinary.uploader.destroy(profile.profileImageId, {
+              resource_type: "image",
+            });
+          } catch (destroyErr) {
+            console.log("Cloudinary destroy error:", destroyErr);
+          }
+        }
+      } catch (uploadError) {
+        console.log("Cloudinary upload error:", uploadError);
+        return res.status(500).json({
+          success: false,
+          message: "Error uploading image to cloud storage",
+        });
+      }
     }
 
-    let profile = await Profile.findOne({ userId: id });
+    // Coerce profileImageVisible flag
+    const payload = { ...req.body };
+    if (payload.profileImageVisible !== undefined) {
+      payload.profileImageVisible =
+        payload.profileImageVisible === "true" ||
+        payload.profileImageVisible === true;
+    }
 
     if (!profile) {
       profile = await Profile.create({
-        ...req.body,
+        ...payload,
         userId: id,
-        profileImage: imageBase64,
+        ...(profileImageUrl && { profileImage: profileImageUrl }),
+        ...(profileImageId && { profileImageId }),
       });
     } else {
       profile = await Profile.findOneAndUpdate(
         { userId: id },
         {
           $set: {
-            ...req.body,
-            ...(imageBase64 && { profileImage: imageBase64 }),
+            ...payload,
+            ...(profileImageUrl && { profileImage: profileImageUrl }),
+            ...(profileImageId && { profileImageId }),
           },
         },
         { new: true },

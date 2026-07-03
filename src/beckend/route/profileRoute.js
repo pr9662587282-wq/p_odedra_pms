@@ -18,8 +18,6 @@ const { authMiddleware } = require("../controller/UserController"); // Assuming 
 router.get("/Datalist", authMiddleware, getUserNames);
 router.get("/Datalist_AllUsers", authMiddleware, getAllProfiles);
 
-router.put("/update-permission/:id", authMiddleware, updateProfilePermissions); // New route for profile permissions
-
 const upload = require("../image_upload/upload");
 router.get("/get-username", authMiddleware, getUserName);
 router.get("/profile/my", authMiddleware, getMySimpleProfile);
@@ -38,9 +36,8 @@ router.put(
   saveProfileById,
 );
 
-router.get("/profile/:id", authMiddleware, getProfileById);
-
 router.get("/profile/me", authMiddleware, getMyProfile);
+router.get("/profile/:id", authMiddleware, getProfileById);
 
 router.put("/update-permission/:id", authMiddleware, updateProfilePermissions); // New route for profile permissions
 

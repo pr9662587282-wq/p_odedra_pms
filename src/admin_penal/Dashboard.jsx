@@ -3,6 +3,7 @@ import Sidebar_Admin from "./Sidebar_Admin";
 import { useTheme } from "../Theme/ThemeContext";
 import Register from "../auth/Register";
 import logo from "../assets/photo-1624770802806-5df97af960b6.png";
+import axios from "axios";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -42,10 +43,95 @@ const salesLabels = [
   "Nov",
   "Dec",
 ];
-
+import { io } from "socket.io-client";
+import { useRef } from "react";
 function Dashboard({ onAddUser }) {
   const { theme, toggleTheme } = useTheme();
   const [openRegister, setOpenRegister] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [leaves, setLeaves] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const socketRef = useRef(null);
+  const [attendanceRate, setAttendanceRate] = useState(0);
+  const [stats, setStats] = useState({
+    monthlyRate: 0,
+    present: 0,
+    absent: 0,
+    onLeave: 0,
+  });
+
+  useEffect(() => {
+    const fetchRate = async () => {
+      const res = await axios.get(
+        "http://localhost:5000/attendance/monthly-rate?month=2026-06",
+        { headers: getHeaders() },
+      );
+      // setStats(res.data);
+      setAttendanceRate(res.data.monthlyRate);
+      setStats(res.data);
+    };
+
+    fetchRate();
+  }, []);
+  useEffect(() => {
+    fetchDashboard();
+  }, []);
+
+  const getHeaders = () => {
+    const token = localStorage.getItem("token");
+    return {
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
+  const fetchDashboard = async () => {
+    try {
+      const [usersRes, leavesRes] = await Promise.all([
+        axios.get("http://localhost:5000/user-names", {
+          headers: getHeaders(),
+        }),
+        axios.get("http://localhost:5000/leave/admin/all", {
+          headers: getHeaders(),
+        }),
+      ]);
+
+      setUsers(usersRes.data);
+      setLeaves(leavesRes.data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const totalEmployees = users.length;
+  const activeEmployees = users.filter((user) =>
+    onlineUsers.includes(String(user._id)),
+  ).length;
+  const totalLeaveRequests = leaves.length;
+
+  const pendingRequests = leaves.filter(
+    (leave) => leave.status === "Pending",
+  ).length;
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const myId = localStorage.getItem("userId");
+
+    if (!myId) return;
+
+    socketRef.current = io("http://localhost:5000");
+
+    socketRef.current.emit("join", myId);
+
+    socketRef.current.on("online_users", (ids) => {
+      if (Array.isArray(ids)) {
+        setOnlineUsers(ids.map(String));
+      }
+    });
+
+    return () => {
+      socketRef.current.disconnect();
+    };
+  }, []);
   return (
     <div
       className={`min-h-screen px-3 pb-8 pt-20 md:ml-80 md:px-6 md:pt-0 ${
@@ -166,11 +252,16 @@ function Dashboard({ onAddUser }) {
         <div className="grid w-full gap-12 xl:grid-cols-[1.45fr_1fr]">
           <div className="mx-auto grid w-full gap-4 sm:grid-cols-2 sm:gap-6 md:h-[200px]">
             <div className="card w-full rounded-[1.5rem] p-5 shadow-sm ring-1 sm:p-6">
-              <p className="text-sm font-medium ">Customers</p>
+              <p className="text-sm font-medium ">Total Employees</p>
               <div className="mt-4 flex items-center justify-between gap-4 sm:mt-6">
                 <div>
-                  <p className="text-3xl font-semibold sm:text-4xl">3,782</p>
-                  <p className="mt-2 text-sm">Total customers</p>
+                  <p className="text-3xl font-semibold sm:text-4xl">
+                    {" "}
+                    {totalEmployees}
+                  </p>
+                  <p className="mt-2 text-sm">
+                    Active employees:{activeEmployees}
+                  </p>
                 </div>
                 <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                   +11.01%
@@ -179,11 +270,17 @@ function Dashboard({ onAddUser }) {
             </div>
 
             <div className=" card w-full rounded-[1.5rem] p-5  shadow-sm ring-1 sm:p-6">
-              <p className="text-sm font-medium ">Orders</p>
+              <p className="text-sm font-medium ">Pending requests</p>
               <div className="mt-4 flex items-center justify-between gap-4 sm:mt-6">
                 <div>
-                  <p className="text-3xl font-semibold sm:text-4xl">5,359</p>
-                  <p className="mt-2 text-sm ">New orders</p>
+                  <p className="text-3xl font-semibold sm:text-4xl">
+                    {" "}
+                    {totalLeaveRequests}
+                  </p>
+                  <p className="mt-2 text-sm ">
+                    {" "}
+                    Pending Requests: {pendingRequests}
+                  </p>
                 </div>
                 <span className="shrink-0 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
                   -9.05%
@@ -195,9 +292,9 @@ function Dashboard({ onAddUser }) {
           <div className=" card mx-auto w-full rounded-[2rem] p-5 shadow-sm ring-1 sm:p-8 md:h-[600px]">
             <div className=" flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
               <div>
-                <p className="text-sm font-medium">Monthly Target</p>
+                <p className="text-sm font-medium">Attendance Rate</p>
                 <h2 className="mt-2 text-lg font-semibold tracking-tight sm:mt-3 sm:text-2xl">
-                  Target you&apos;ve set for each month
+                  Employee attendance this month
                 </h2>
               </div>
               <button
@@ -216,7 +313,7 @@ function Dashboard({ onAddUser }) {
                 <div className=" relative inset-x-0 top-20 flex justify-center sm:top-16">
                   <div className="relative top-6 w-[220px] rounded-full bg-white px-6 py-6 text-center shadow-xl sm:top-10 sm:w-[300px] sm:px-10 sm:py-8">
                     <p className="text-4xl font-semibold text-slate-900 sm:text-5xl ">
-                      75.55%
+                      {attendanceRate}%
                     </p>
                     <span className="mt-2 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
                       +10%
@@ -233,21 +330,21 @@ function Dashboard({ onAddUser }) {
 
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
               <div className=" card rounded-3xl p-4 text-center sm:text-left">
-                <p className="text-xs uppercase tracking-[0.3em]">Target</p>
+                <p className="text-xs uppercase tracking-[0.3em]">PRESENT </p>
                 <p className="mt-2 text-xl font-semibold sm:mt-3 sm:text-2xl">
-                  $20K
+                  {stats.present}
                 </p>
               </div>
               <div className=" card rounded-3xl p-4 text-center sm:text-left">
-                <p className="text-xs uppercase tracking-[0.3em]0">Revenue</p>
+                <p className="text-xs uppercase tracking-[0.3em]0">ABSENT </p>
                 <p className="mt-2 text-xl font-semibold  sm:mt-3 sm:text-2xl">
-                  $20K
+                  {stats.absent}
                 </p>
               </div>
               <div className=" card rounded-3xl p-4 text-center sm:text-left">
-                <p className="text-xs uppercase tracking-[0.3em] ">Today</p>
+                <p className="text-xs uppercase tracking-[0.3em] ">ON LEAVE</p>
                 <p className="mt-2 text-xl font-semibold 0 sm:mt-3 sm:text-2xl">
-                  $20K
+                  {stats.onLeave}
                 </p>
               </div>
             </div>
@@ -258,9 +355,9 @@ function Dashboard({ onAddUser }) {
           <div className=" card rounded-[2rem] b p-8 shadow-sm ring-1  md:h-[500px] w-[100%] relative md:bottom-[390px] md:w-[738px]">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-medium ">Monthly Sales</p>
+                <p className="text-sm font-medium ">Monthly Attendance</p>
                 <h2 className="mt-2 text-lg font-semibold  sm:text-xl">
-                  Your performance this month
+                  Employee attendance overview
                 </h2>
               </div>
               <span className="w-fit rounded-full  px-3 py-1 text-sm font-semibold">

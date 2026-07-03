@@ -14,9 +14,9 @@ function Sidebar_Admin({ onAddUser }) {
     { label: "Permission", icon: "users" },
     { label: "+ Add User", icon: "stack" },
     { label: "Logout", icon: "cloud" },
-    { label: "CRM", icon: "trending-up", badge: "NEW" },
+    { label: "chat", icon: "trending-up", badge: "NEW" },
     { label: "Access", icon: "wallet", badge: "NEW" },
-    { label: "logout", icon: "robot", badge: "NEW" },
+    { label: "leave", icon: "robot", badge: "NEW" },
     { label: "E-commerce", icon: "shopping-bag" },
     { label: "Calendar", icon: "calendar" },
     { label: "User Profile", icon: "user" },
@@ -42,6 +42,8 @@ function Sidebar_Admin({ onAddUser }) {
       localStorage.removeItem("token");
       localStorage.removeItem("role");
       localStorage.removeItem("username");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("groupId");
 
       // RESET THEME
       document.documentElement.setAttribute("data-theme", "light");
@@ -55,6 +57,12 @@ function Sidebar_Admin({ onAddUser }) {
 
     if (label === "Task") {
       navigate("/Task_admin");
+    }
+    if (label === "chat") {
+      navigate("/chat");
+    }
+    if (label === "leave") {
+      navigate("/leaves");
     }
 
     /* if (label === "Permission") {
