@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+node_modules
+.env
+dist
+build
+coverage
+=======
 # Logs
 logs
 *.log
@@ -22,3 +29,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+>>>>>>> 7e43dd1a57ac93538dac9111b5d929502ba60ac7
