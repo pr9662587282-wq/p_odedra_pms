@@ -1,0 +1,46 @@
+name: Security — Scheduled Audit
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'   # Every Monday at 8:00 AM UTC
+  workflow_dispatch:        # Allow manual trigger from GitHub UI
+
+jobs:
+  audit:
+    name: Weekly Dependency Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Audit frontend (JSON report)
+        run: cd frontend && npm audit --json > ../audit-frontend.json || true
+
+      - name: Audit backend (JSON report)
+        run: cd backend && npm audit --json > ../audit-backend.json || true
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-security-audit
+          path: |
+            audit-frontend.json
+            audit-backend.json
+          retention-days: 90
+
+      - name: Fail on critical vulnerabilities
+        run: |
+          cd frontend && npm audit --audit-level=critical
+          cd ../backend && npm audit --audit-level=critical
