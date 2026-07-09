@@ -309,7 +309,7 @@ exports.googleLogin = async (req, res) => {
 //  LINKEDIN CALLBACK CONTROLLER
 exports.redirectToLinkedIn = (req, res) => {
   const CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
-  const REDIRECT_URI = "http://localhost:5000/auth/linkedin/callback";
+  const REDIRECT_URI = `${process.env.BACKEND_URL}/auth/linkedin/callback`;
 
   const linkedinAuthUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=openid%20profile%20email`;
 
@@ -331,7 +331,7 @@ exports.linkedinCallbackController = async (req, res) => {
       new URLSearchParams({
         grant_type: "authorization_code",
         code: code,
-        redirect_uri: "http://localhost:5000/auth/linkedin/callback",
+        redirect_uri: `${process.env.BACKEND_URL}/auth/linkedin/callback`,
         client_id: process.env.LINKEDIN_CLIENT_ID,
         client_secret: process.env.LINKEDIN_CLIENT_SECRET,
       }),
@@ -381,7 +381,7 @@ exports.linkedinCallbackController = async (req, res) => {
 
     // Step E: Direct Redirect to Frontend Success Route
     res.redirect(
-      `http://localhost:5173/auth-success?token=${token}&role=${user.role}&userId=${user._id}&email=${user.email}`,
+      `${process.env.FRONTEND_URL}/auth-success?token=${token}&role=${user.role}&userId=${user._id}&email=${user.email}`,
     );
   } catch (error) {
     console.error(
@@ -399,9 +399,8 @@ exports.linkedinCallbackController = async (req, res) => {
 
 exports.redirectToGitHub = (req, res) => {
   const CLIENT_ID = process.env.GITHUB_CLIENT_ID;
-  const REDIRECT_URI = "http://localhost:5000/auth/github/callback";
+  const REDIRECT_URI = `${process.env.BACKEND_URL}/auth/github/callback`;
 
-  // user:email scope se user ka private email bhi mil jata hai
   const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=user:email`;
 
   res.redirect(githubAuthUrl);
@@ -423,7 +422,7 @@ exports.githubCallbackController = async (req, res) => {
         client_id: process.env.GITHUB_CLIENT_ID,
         client_secret: process.env.GITHUB_CLIENT_SECRET,
         code: code,
-        redirect_uri: "http://localhost:5000/auth/github/callback",
+        redirect_uri: `${process.env.BACKEND_URL}/auth/github/callback`,
       },
       { headers: { Accept: "application/json" } },
     );
@@ -492,7 +491,7 @@ exports.githubCallbackController = async (req, res) => {
 
     //  Step E: User ko Frontend ke '/auth-success' route par redirect karein (LinkedIn ki tarah)
     res.redirect(
-      `http://localhost:5173/auth-success?token=${token}&role=${user.role}&userId=${user._id}&email=${user.email}`,
+      `${process.env.FRONTEND_URL}/auth-success?token=${token}&role=${user.role}&userId=${user._id}&email=${user.email}`,
     );
   } catch (error) {
     console.error("GitHub Auth Error:", error.message);

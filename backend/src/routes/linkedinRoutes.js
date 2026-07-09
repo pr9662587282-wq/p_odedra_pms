@@ -11,7 +11,7 @@ router.get(
     session: false,
   }),
   (req, res) => {
-    res.redirect("http://localhost:5173/UserDeshboard");
+    res.redirect(`${process.env.FRONTEND_URL}/UserDeshboard`);
   },
 );
 
