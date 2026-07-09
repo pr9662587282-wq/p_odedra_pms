@@ -45,7 +45,7 @@ export default function Login() {
     setLoadingLogin(true);
 
     try {
-      const res = await axios.post("http://localhost:5000/login", {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/login`, {
         email,
         password,
       });
@@ -75,7 +75,7 @@ export default function Login() {
 
   const handleGoogleLogin = async (credentialResponse) => {
     try {
-      const res = await axios.post("http://localhost:5000/google-login", {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/google-login`, {
         credential: credentialResponse.credential,
       });
 
@@ -103,7 +103,7 @@ export default function Login() {
   };
   /*const handleGoogleLogin = async (tokenResponse) => {
     try {
-      const res = await axios.post("http://localhost:5000/google-login", {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/google-login`, {
         credential: tokenResponse.access_token, // Backend ko access_token mil jayega
       });
 
@@ -134,11 +134,11 @@ export default function Login() {
   });*/
   const handleLinkedInLogin = () => {
     localStorage.setItem("provider", "linkedin");
-    window.location.href = "http://localhost:5000/login/linkedin";
+    window.location.href = `${import.meta.env.VITE_API_URL}/login/linkedin`;
   };
   const handleGitHubLogin = () => {
     localStorage.setItem("provider", "github");
-    window.location.href = "http://localhost:5000/login/github";
+    window.location.href = `${import.meta.env.VITE_API_URL}/login/github`;
   };
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -183,7 +183,7 @@ export default function Login() {
     const loadingToast = toast.loading("Sending OTP...");
 
     try {
-      const res = await axios.post("http://localhost:5000/send-otp", {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/send-otp`, {
         phone,
       });
 
@@ -213,7 +213,7 @@ export default function Login() {
 
   const verifyOtp = async () => {
     try {
-      const res = await axios.post("http://localhost:5000/verify-otp", {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/verify-otp`, {
         phone,
         otp,
       });

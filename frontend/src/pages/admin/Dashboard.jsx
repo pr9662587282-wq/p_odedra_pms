@@ -262,7 +262,7 @@ function Dashboard({ onAddUser }) {
   useEffect(() => {
     const fetchRate = async () => {
       const res = await axios.get(
-        "http://localhost:5000/attendance/monthly-rate?month=2026-06",
+        `${import.meta.env.VITE_API_URL}/attendance/monthly-rate?month=2026-06`,
         { headers: getHeaders() },
       );
       setAttendanceRate(res.data.monthlyRate);
@@ -283,10 +283,10 @@ function Dashboard({ onAddUser }) {
   const fetchDashboard = async () => {
     try {
       const [usersRes, leavesRes] = await Promise.all([
-        axios.get("http://localhost:5000/user-names", {
+        axios.get(`${import.meta.env.VITE_API_URL}/user-names`, {
           headers: getHeaders(),
         }),
-        axios.get("http://localhost:5000/leave/admin/all", {
+        axios.get(`${import.meta.env.VITE_API_URL}/leave/admin/all`, {
           headers: getHeaders(),
         }),
       ]);
@@ -310,7 +310,7 @@ function Dashboard({ onAddUser }) {
   useEffect(() => {
     const myId = localStorage.getItem("userId");
     if (!myId) return;
-    socketRef.current = io("http://localhost:5000");
+    socketRef.current = io(import.meta.env.VITE_API_URL);
     socketRef.current.emit("join", myId);
     socketRef.current.on("online_users", (ids) => {
       if (Array.isArray(ids)) setOnlineUsers(ids.map(String));

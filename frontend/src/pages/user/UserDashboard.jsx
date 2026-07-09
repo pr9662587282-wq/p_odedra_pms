@@ -206,7 +206,7 @@ export default function UserDeshboard() {
   const fetchToday = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/attendance/today/${userId}`,
+        `${import.meta.env.VITE_API_URL}/attendance/today/${userId}`,
         getConfig(),
       );
       setRecord(res.data.record);
@@ -220,7 +220,7 @@ export default function UserDeshboard() {
   const fetchBirthdays = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/UpcomingBday",
+        `${import.meta.env.VITE_API_URL}/UpcomingBday`,
         getConfig(),
       );
       const list = Array.isArray(res.data)
@@ -254,7 +254,7 @@ export default function UserDeshboard() {
     try {
       setLoading("checkin");
       const res = await axios.post(
-        "http://localhost:5000/attendance/checkin",
+        `${import.meta.env.VITE_API_URL}/attendance/checkin`,
         {},
         getConfig(),
       );
@@ -272,7 +272,7 @@ export default function UserDeshboard() {
     try {
       setLoading("checkout");
       const res = await axios.post(
-        "http://localhost:5000/attendance/checkout",
+        `${import.meta.env.VITE_API_URL}/attendance/checkout`,
         {},
         getConfig(),
       );
@@ -290,7 +290,7 @@ export default function UserDeshboard() {
     try {
       setLoading("breakin");
       const res = await axios.post(
-        "http://localhost:5000/attendance/breakin",
+        `${import.meta.env.VITE_API_URL}/attendance/breakin`,
         {},
         getConfig(),
       );
@@ -308,7 +308,7 @@ export default function UserDeshboard() {
     try {
       setLoading("breakout");
       const res = await axios.post(
-        "http://localhost:5000/attendance/breakout",
+        `${import.meta.env.VITE_API_URL}/attendance/breakout`,
         {},
         getConfig(),
       );
@@ -393,8 +393,8 @@ export default function UserDeshboard() {
       try {
         const url =
           id && id !== "undefined"
-            ? `http://localhost:5000/profile/${id}`
-            : "http://localhost:5000/profile/me";
+            ? `${import.meta.env.VITE_API_URL}/profile/${id}`
+            : `${import.meta.env.VITE_API_URL}/profile/me`;
 
         const res = await axios.get(url, getConfig());
 
@@ -426,7 +426,7 @@ export default function UserDeshboard() {
       setIsUpdating(true);
       const formData = new FormData();
       formData.append("profileImage", file);
-      const url = "http://localhost:5000/profile/me";
+      const url = `${import.meta.env.VITE_API_URL}/profile/me`;
 
       const res = await axios({
         method: "post",
@@ -454,7 +454,7 @@ export default function UserDeshboard() {
     try {
       setIsUpdating(true);
 
-      const res = await axios.put("http://localhost:5000/forgetPassword", {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL}/forgetPassword`, {
         email: localStorage.getItem("username"),
         newPassword: passwords.new,
       });

@@ -563,7 +563,7 @@ export default function Attendance_show() {
         const targetUserId = id || localStorage.getItem("userId");
 
         const res = await axios.get(
-          `http://localhost:5000/history/${targetUserId}`,
+          `${import.meta.env.VITE_API_URL}/history/${targetUserId}`,
           getConfig(),
         );
 
@@ -665,7 +665,7 @@ export default function Attendance_show() {
       };
 
       await axios.put(
-        `http://localhost:5000/history/${editingRecord._id}`,
+        `${import.meta.env.VITE_API_URL}/history/${editingRecord._id}`,
         payload,
         getConfig(),
       );
@@ -692,7 +692,7 @@ export default function Attendance_show() {
     if (!window.confirm(`Delete attendance record for ${record.date}?`)) return;
     try {
       await axios.delete(
-        `http://localhost:5000/history/${record._id}`,
+        `${import.meta.env.VITE_API_URL}/history/${record._id}`,
         getConfig(),
       );
       setAllRecords((prev) => prev.filter((r) => r._id !== record._id));
@@ -709,7 +709,7 @@ export default function Attendance_show() {
       formData.append("file", file);
 
       const res = await axios.post(
-        "http://localhost:5000/api/google-drive/upload-drive",
+        `${import.meta.env.VITE_API_URL}/api/google-drive/upload-drive`,
         formData,
         {
           headers: {

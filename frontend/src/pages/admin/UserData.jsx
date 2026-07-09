@@ -58,7 +58,7 @@ function User_Data_Adminpenal() {
       const userId = item.userId?._id || item.userId || item._id;
 
       const res = await axios.get(
-        `http://localhost:5000/permissions/${userId}`,
+        `${import.meta.env.VITE_API_URL}/permissions/${userId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -105,7 +105,7 @@ function User_Data_Adminpenal() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `http://localhost:5000/permissions/${selectedUser.id}`,
+        `${import.meta.env.VITE_API_URL}/permissions/${selectedUser.id}`,
         { permissions: popupPermissions },
         {
           headers: {
@@ -128,7 +128,7 @@ function User_Data_Adminpenal() {
     const token = localStorage.getItem("token");
 
     axios
-      .get("http://localhost:5000/Datalist_AllUsers", {
+      .get(`${import.meta.env.VITE_API_URL}/Datalist_AllUsers`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -146,7 +146,7 @@ function User_Data_Adminpenal() {
     // fetch current user's permission to determine whether to show images
     const token = localStorage.getItem("token");
     axios
-      .get("http://localhost:5000/my-permission", {
+      .get(`${import.meta.env.VITE_API_URL}/my-permission`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => {

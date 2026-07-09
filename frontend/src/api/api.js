@@ -2,8 +2,8 @@ import axios from "axios";
 
 // ── Single source of truth for backend URL ──
 // Change VITE_API_URL in frontend/.env to switch environments
-export const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+export const BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_URL;
+export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL;
 
 // ── Pre-configured axios instance ──
 // All API calls use this instead of raw axios + URL

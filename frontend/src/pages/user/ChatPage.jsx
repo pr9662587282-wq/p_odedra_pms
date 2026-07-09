@@ -65,7 +65,7 @@ const Chat = () => {
     try {
       if (!token) return;
 
-      const res = await axios.get("http://localhost:5000/profile/me", {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/profile/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -110,7 +110,7 @@ const Chat = () => {
       if (fcmToken) {
         axios
           .post(
-            "http://localhost:5000/fcm/save-token",
+            `${import.meta.env.VITE_API_URL}/fcm/save-token`,
             { token: fcmToken },
             { headers: { Authorization: `Bearer ${token}` } },
           )
@@ -178,7 +178,7 @@ const Chat = () => {
 
   useEffect(() => {
     if (!myId || myId === "null") return;
-    socketRef.current = io("http://localhost:5000");
+    socketRef.current = io(import.meta.env.VITE_API_URL);
     socketRef.current.emit("join", myId);
 
     socketRef.current.on("receive_message", (msg) => {
@@ -212,7 +212,7 @@ const Chat = () => {
     const myRequestId = ++requestIdRef.current;
     try {
       const res = await axios.get(
-        `http://localhost:5000/chat/messages/${receiverId}`,
+        `${import.meta.env.VITE_API_URL}/chat/messages/${receiverId}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (myRequestId === requestIdRef.current && Array.isArray(res.data)) {
@@ -240,7 +240,7 @@ const Chat = () => {
           : groupId;
 
       const res = await axios.get(
-        `http://localhost:5000/chat/users/${targetGroupId}`,
+        `${import.meta.env.VITE_API_URL}/chat/users/${targetGroupId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -302,7 +302,7 @@ const Chat = () => {
       if (imageFile) formData.append("image", imageFile);
 
       const res = await axios.post(
-        "http://localhost:5000/chat/send",
+        `${import.meta.env.VITE_API_URL}/chat/send`,
         formData,
         {
           headers: {

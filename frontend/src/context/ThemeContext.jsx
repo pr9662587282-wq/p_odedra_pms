@@ -35,7 +35,7 @@ export function ThemeProvider({ children }) {
     if (cached) setTheme(cached);
 
     try {
-      const res = await axios.get("http://localhost:5000/get-theme", {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/get-theme`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const userTheme = res.data.theme || "light";
@@ -73,7 +73,7 @@ export function ThemeProvider({ children }) {
     try {
       if (token) {
         await axios.post(
-          "http://localhost:5000/save-theme",
+          `${import.meta.env.VITE_API_URL}/save-theme`,
           { theme: newTheme },
           { headers: { Authorization: `Bearer ${token}` } },
         );

@@ -90,7 +90,7 @@ export default function Admin_Leave_Panel() {
   async function fetchLeaves() {
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:5000/leave/admin/all", {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/leave/admin/all`, {
         headers: getHeaders(),
       });
       setLeaves(res.data);
@@ -105,7 +105,7 @@ export default function Admin_Leave_Panel() {
     setActionId(id);
     try {
       await axios.patch(
-        `http://localhost:5000/leave/admin/${id}/status`,
+        `${import.meta.env.VITE_API_URL}/leave/admin/${id}/status`,
         { status },
         { headers: getHeaders() },
       );
@@ -156,7 +156,7 @@ export default function Admin_Leave_Panel() {
     setSaving(true);
     try {
       await axios.patch(
-        `http://localhost:5000/leave/admin/${editLeave.id}/dates`,
+        `${import.meta.env.VITE_API_URL}/leave/admin/${editLeave.id}/dates`,
         { from: editForm.from, to: editForm.to },
         { headers: getHeaders() },
       );

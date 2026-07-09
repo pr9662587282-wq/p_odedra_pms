@@ -126,9 +126,9 @@ export default function User_profile_Edit() {
     try {
       let url;
       if (id) {
-        url = `http://localhost:5000/profile/${id}`;
+        url = `${import.meta.env.VITE_API_URL}/profile/${id}`;
       } else {
-        url = "http://localhost:5000/profile/me";
+        url = `${import.meta.env.VITE_API_URL}/profile/me`;
       }
       const res = await axios.get(url, config());
       setUser(res.data.profile || {});
@@ -143,8 +143,8 @@ export default function User_profile_Edit() {
     try {
       setPhotoLoading(true);
       const url = id
-        ? `http://localhost:5000/profile/${id}`
-        : "http://localhost:5000/profile/me";
+        ? `${import.meta.env.VITE_API_URL}/profile/${id}`
+        : `${import.meta.env.VITE_API_URL}/profile/me`;
       const data = new FormData();
       data.append("profileImage", file);
       const res = await axios({

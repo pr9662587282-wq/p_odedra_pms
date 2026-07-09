@@ -35,7 +35,7 @@ export default function Register({ isModal = false, onClose }) {
     const token = localStorage.getItem("token");
     axios
       .post(
-        "http://localhost:5000/register",
+        `${import.meta.env.VITE_API_URL}/register`,
         {
           email,
           password,

@@ -41,7 +41,7 @@ export default function User_Sidebar({ fullName, profileImage }) {
 
     const userId = String(rawId).replace(/["']/g, "").trim();
 
-    const socket = io("http://localhost:5000");
+    const socket = io(import.meta.env.VITE_API_URL);
     socket.emit("join", userId);
 
     return () => {

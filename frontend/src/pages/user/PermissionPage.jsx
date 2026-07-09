@@ -45,7 +45,7 @@ function User_permission() {
     const token = localStorage.getItem("token");
 
     axios
-      .get("http://localhost:5000/my-permission", {
+      .get(`${import.meta.env.VITE_API_URL}/my-permission`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -77,7 +77,7 @@ function User_permission() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     axios
-      .get("http://localhost:5000/Datalist_AllUsers", {
+      .get(`${import.meta.env.VITE_API_URL}/Datalist_AllUsers`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -93,7 +93,7 @@ function User_permission() {
   // ---------------------------------
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/DeleteUser/${id}`);
+      await axios.delete(`${import.meta.env.VITE_API_URL}/DeleteUser/${id}`);
 
       setData((prev) => prev.filter((item) => item._id !== id));
 

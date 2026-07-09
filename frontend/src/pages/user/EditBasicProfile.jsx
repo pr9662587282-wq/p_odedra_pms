@@ -48,8 +48,8 @@ export default function Edit_basic_profile({
       const token = localStorage.getItem("token");
 
       const url = id
-        ? `http://localhost:5000/profile/${id}`
-        : `http://localhost:5000/profile/me`;
+        ? `${import.meta.env.VITE_API_URL}/profile/${id}`
+        : `${import.meta.env.VITE_API_URL}/profile/me`;
 
       const data = new FormData();
       Object.entries(formData).forEach(([key, val]) => {

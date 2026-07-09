@@ -47,7 +47,7 @@ export default function User_form() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/fromuser",
+        `${import.meta.env.VITE_API_URL}/fromuser`,
         {
           email: loginUser,
           fullname,

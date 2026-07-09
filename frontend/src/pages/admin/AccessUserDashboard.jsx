@@ -28,7 +28,7 @@ function Access_user_dashboard() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     axios
-      .get("http://localhost:5000/user-names", {
+      .get(`${import.meta.env.VITE_API_URL}/user-names`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => {

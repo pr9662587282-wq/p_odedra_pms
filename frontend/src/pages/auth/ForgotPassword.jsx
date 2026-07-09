@@ -11,7 +11,7 @@ export default function Forget_password() {
     event.preventDefault();
 
     try {
-      const res = await axios.put("http://localhost:5000/forgetPassword", {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL}/forgetPassword`, {
         email,
         newPassword: password,
       });

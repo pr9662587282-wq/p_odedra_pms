@@ -198,10 +198,10 @@ function useLeave() {
     setLoading(true);
     try {
       const [h, b] = await Promise.all([
-        axios.get("http://localhost:5000/leave/history", {
+        axios.get(`${import.meta.env.VITE_API_URL}/leave/history`, {
           headers: getHeaders(),
         }),
-        axios.get("http://localhost:5000/leave/balance", {
+        axios.get(`${import.meta.env.VITE_API_URL}/leave/balance`, {
           headers: getHeaders(),
         }),
       ]);
@@ -217,7 +217,7 @@ function useLeave() {
 
   async function submitLeave(data) {
     try {
-      const res = await axios.post("http://localhost:5000/leave/apply", data, {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/leave/apply`, data, {
         headers: getHeaders(),
       });
 
@@ -365,7 +365,7 @@ const uploadToDrive = async (file) => {
 
   try {
     await axios.post(
-      "http://localhost:5000/api/google-drive/upload-drive",
+      `${import.meta.env.VITE_API_URL}/api/google-drive/upload-drive`,
       formData,
       {
         headers: { "Content-Type": "multipart/form-data" },
