@@ -1,4 +1,4 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
 
 const {
@@ -7,19 +7,18 @@ const {
   removePermission,
   updateAttendancePermission,
   updateTaskPermission,
-  
-} = require("../controllers/permissionController");
+} = require('../controllers/permissionController');
 
-const { authMiddleware } = require("../controllers/UserController");
+const { authMiddleware } = require('../controllers/userController');
 
-router.put("/update-permission/:id", updatePermission);
+router.put('/update-permission/:id', updatePermission);
 
 // show data
-router.get("/my-permission", authMiddleware, getMyPermission);
+router.get('/my-permission', authMiddleware, getMyPermission);
 
-router.delete("/remove-permission/:id", removePermission);
+router.delete('/remove-permission/:id', removePermission);
 
-router.put("/permission/attendance/:id", updateAttendancePermission);
-router.put("/permission/task/:id", updateTaskPermission);
+router.put('/permission/attendance/:id', updateAttendancePermission);
+router.put('/permission/task/:id', updateTaskPermission);
 
 module.exports = router;
