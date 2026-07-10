@@ -348,24 +348,16 @@ export default function Login() {
         </div>
 
         <div className="flex justify-center items-center gap-4 mt-4 w-full">
-          {/* GOOGLE BUTTON — custom icon with GoogleLogin overlay */}
+          {/* GOOGLE BUTTON */}
           <div className="relative flex items-center justify-center h-11 w-11 rounded-full border border-slate-200 bg-white shadow-sm hover:bg-slate-50 hover:scale-105 transition overflow-hidden">
-            {/* Visible Google icon */}
-            <img
-              src="https://www.svgrepo.com/show/475656/google-color.svg"
-              className="h-5 w-5 absolute z-0 pointer-events-none"
-              alt="Google"
+            <GoogleLogin
+              onSuccess={handleGoogleLogin}
+              onError={() => toast.error("Google login failed")}
+              type="icon"
+              shape="circle"
+              size="large"
+              logo_alignment="center"
             />
-            {/* GoogleLogin rendered transparent on top — handles actual OAuth */}
-            <div className="absolute inset-0 z-10 opacity-0">
-              <GoogleLogin
-                onSuccess={handleGoogleLogin}
-                onError={() => toast.error("Google login failed")}
-                type="icon"
-                shape="circle"
-                size="large"
-              />
-            </div>
           </div>
 
           {/*  LINKEDIN BUTTON */}
