@@ -384,14 +384,13 @@ const Chat = () => {
     <button
       key={u._id}
       onClick={() => openChat(u)}
-      className={`flex items-center gap-3 w-full p-3 rounded-2xl transition-all ${
-        String(selectedUser?._id) === String(u._id)
-          ? "bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-500/20"
-          : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
-      }`}
+      className={`flex items-center gap-3 w-full p-3 rounded-2xl transition-all ${String(selectedUser?._id) === String(u._id)
+        ? "bg-indigo-50/80 dark:bg-indigo-600/15 ring-1 ring-indigo-100 dark:ring-indigo-500/30"
+        : "hover:bg-slate-50 dark:hover:bg-slate-800/30"
+        }`}
     >
       <div className="relative shrink-0 group">
-        <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-900/40 dark:to-indigo-800/40 flex items-center justify-center ring-1 ring-indigo-200/50 dark:ring-indigo-700/50">
+        <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-950 dark:to-indigo-900/60 flex items-center justify-center ring-1 ring-indigo-200/50 dark:ring-indigo-500/20">
           <UserIcon
             size={20}
             className="text-indigo-600 dark:text-indigo-400"
@@ -399,21 +398,20 @@ const Chat = () => {
         </div>
         {/* The Green Dot Indicator */}
         <span
-          className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${
-            onlineUsers.some((oid) => oid === cleanId(u._id))
-              ? "bg-emerald-500"
-              : "bg-slate-300 dark:bg-slate-600"
-          }`}
+          className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white dark:border-[#0B0F19] ${onlineUsers.some((oid) => oid === cleanId(u._id))
+            ? "bg-emerald-500"
+            : "bg-slate-300 dark:bg-slate-700"
+            }`}
         ></span>
         {u.lastMessage &&
           !isIdMe(u.lastMessage.senderId) &&
           (!selectedUser || String(selectedUser._id) !== String(u._id)) && (
-            <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-rose-500 border-2 border-white dark:border-slate-900 animate-bounce"></span>
+            <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-rose-500 border-2 border-white dark:border-[#0B0F19] animate-bounce"></span>
           )}
       </div>
       <div className="text-left overflow-hidden flex-1">
         <div className="flex justify-between items-baseline">
-          <p className="text-sm font-bold truncate">
+          <p className="text-sm font-semibold truncate text-slate-800 dark:text-slate-200">
             {u.fullname ||
               u.fullName ||
               u.name ||
@@ -425,7 +423,7 @@ const Chat = () => {
               "Team Member"}*/}
           </p>
           {u.lastMessage && (
-            <span className="text-[9px] text-slate-400 font-medium">
+            <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
               {new Date(u.lastMessage.createdAt).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -435,7 +433,7 @@ const Chat = () => {
         </div>
         <div className="flex items-center gap-1">
           <p
-            className={`text-xs truncate ${u.lastMessage && !isIdMe(u.lastMessage.senderId) && (!selectedUser || String(selectedUser._id) !== String(u._id)) ? "font-black text-slate-900 dark:text-white" : "text-slate-400/70 font-medium"}`}
+            className={`text-xs truncate ${u.lastMessage && !isIdMe(u.lastMessage.senderId) && (!selectedUser || String(selectedUser._id) !== String(u._id)) ? "font-bold text-slate-900 dark:text-slate-100" : "text-slate-400 dark:text-slate-500 font-medium"}`}
           >
             {u.lastMessage ? (
               <>
@@ -453,7 +451,7 @@ const Chat = () => {
 
   return (
     <div
-      className={`flex min-h-screen ${theme === "dark" ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-900"}`}
+      className={`flex min-h-screen ${theme === "dark" ? "bg-[#090D16] text-white" : "bg-slate-50 text-slate-900"}`}
     >
       <style>
         {`
@@ -478,13 +476,13 @@ const Chat = () => {
         <div className="flex flex-1 overflow-hidden">
           {/* User List Sidebar */}
           <div
-            className={`w-full md:w-80 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 ${selectedUser ? "hidden md:flex" : "flex"}`}
+            className={`w-full md:w-80 border-r border-slate-200 dark:border-slate-800/60 flex flex-col bg-white dark:bg-[#0B0F19] ${selectedUser ? "hidden md:flex" : "flex"}`}
           >
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-              <h2 className="text-lg font-black tracking-tight uppercase text-indigo-500">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800/60">
+              <h2 className="text-lg font-black tracking-tight uppercase text-indigo-500 dark:text-indigo-400">
                 Messages
               </h2>
-              <p className="text-xs text-slate-400 font-medium">
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
                 Group:{" "}
                 {!currentUser?.groupId || currentUser?.groupId === "null"
                   ? "Public / Ungrouped"
@@ -496,7 +494,7 @@ const Chat = () => {
                 {hasUsers ? (
                   Object.entries(categorized).map(([groupTitle, userList]) => (
                     <div key={groupTitle} className="mb-4">
-                      <p className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800/50 mb-1">
+                      <p className="px-3 py-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800/30 mb-1">
                         {groupTitle}
                       </p>
                       <div className="space-y-1">
@@ -505,7 +503,7 @@ const Chat = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-10 text-slate-400">
+                  <div className="text-center py-10 text-slate-400 dark:text-slate-500">
                     <p className="text-xs font-bold uppercase tracking-widest">
                       No other users in your group
                     </p>
@@ -517,22 +515,22 @@ const Chat = () => {
 
           {/* Chat Window */}
           <div
-            className={`flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-950 ${selectedUser ? "flex" : "hidden md:flex"}`}
+            className={`flex-1 flex flex-col bg-slate-50/30 dark:bg-[#080B11] ${selectedUser ? "flex" : "hidden md:flex"}`}
           >
             {selectedUser ? (
               <>
                 {/* Chat Header */}
-                <div className="px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3 md:gap-4">
+                <div className="px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 dark:border-slate-800/60 bg-white dark:bg-[#0B0F19]/90 dark:backdrop-blur-md flex items-center gap-3 md:gap-4">
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setSelectedUser(null)}
-                    className="md:hidden h-9 w-9 rounded-xl text-slate-500 hover:bg-slate-100"
+                    className="md:hidden h-9 w-9 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/40"
                   >
                     <ChevronLeft size={20} />
                   </Button>
 
-                  <div className="h-10 w-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-bold">
+                  <div className="h-10 w-10 rounded-2xl bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-500/10 dark:shadow-none">
                     {selectedUser &&
                       (
                         selectedUser.fullname ||
@@ -545,7 +543,7 @@ const Chat = () => {
                         .toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-slate-800 dark:text-white">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-white">
                       {selectedUser?.fullname ||
                         selectedUser.fullName ||
                         selectedUser.name ||
@@ -553,15 +551,14 @@ const Chat = () => {
                     </h3>
                     <div className="flex items-center gap-1.5">
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          onlineUsers.some(
-                            (oid) => oid === cleanId(selectedUser._id),
-                          )
-                            ? "bg-emerald-500"
-                            : "bg-slate-300"
-                        }`}
+                        className={`h-1.5 w-1.5 rounded-full ${onlineUsers.some(
+                          (oid) => oid === cleanId(selectedUser._id),
+                        )
+                          ? "bg-emerald-500"
+                          : "bg-slate-300 dark:bg-slate-600"
+                          }`}
                       />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                         {onlineUsers.some(
                           (oid) => oid === cleanId(selectedUser._id),
                         )
@@ -573,9 +570,9 @@ const Chat = () => {
                 </div>
 
                 {/* Messages Area — Using a direct div for more reliable scrolling */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col space-y-4 no-scrollbar bg-slate-50/50 dark:bg-slate-950">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col space-y-4 no-scrollbar bg-slate-50/20 dark:bg-[#090D16]/40">
                   {messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 opacity-60">
                       <p className="text-[10px] font-black uppercase tracking-widest">
                         No messages yet
                       </p>
@@ -594,17 +591,16 @@ const Chat = () => {
                           className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}
                         >
                           <div
-                            className={`relative max-w-[85%] md:max-w-[75%] lg:max-w-[65%] px-4 py-2 rounded-2xl text-[13.5px] font-medium shadow-sm transition-all ${
-                              isMe
-                                ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/10"
-                                : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-100 dark:border-slate-700/50"
-                            }`}
+                            className={`relative max-w-[85%] md:max-w-[75%] lg:max-w-[65%] px-4 py-2.5 rounded-2xl text-[13.5px] font-medium shadow-sm transition-all ${isMe
+                              ? "bg-indigo-600 dark:bg-gradient-to-r dark:from-indigo-600 dark:to-violet-600 text-white rounded-tr-none shadow-indigo-500/10 dark:shadow-indigo-950/40"
+                              : "bg-white dark:bg-[#1E293B]/70 text-slate-800 dark:text-slate-100 rounded-tl-none border border-slate-100 dark:border-slate-800/40 shadow-sm"
+                              }`}
                           >
                             {msg.imageUrl && (
                               <img
                                 src={msg.imageUrl}
                                 alt="sent"
-                                className="rounded-xl max-w-[220px] mb-1 cursor-pointer"
+                                className="rounded-xl max-w-[220px] mb-1.5 cursor-pointer hover:opacity-95 transition-opacity"
                                 onClick={() =>
                                   window.open(
                                     `http://localhost:5000${msg.imageUrl}`,
@@ -619,9 +615,8 @@ const Chat = () => {
                               </p>
                             )}
                             <p
-                              className={`text-[9px] mt-1 text-right font-black uppercase tracking-widest opacity-60 ${
-                                isMe ? "text-indigo-100" : "text-slate-400"
-                              }`}
+                              className={`text-[9px] mt-1 text-right font-black uppercase tracking-widest opacity-60 ${isMe ? "text-indigo-200/90" : "text-slate-400 dark:text-slate-500"
+                                }`}
                             >
                               {new Date(
                                 msg.createdAt || Date.now(),
@@ -640,13 +635,13 @@ const Chat = () => {
 
                 {/* Input Area */}
                 {/* Input Area */}
-                <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                <div className="p-4 bg-white dark:bg-[#0B0F19] border-t border-slate-200 dark:border-slate-800/60">
                   {imagePreview && (
                     <div className="relative inline-block mb-3">
                       <img
                         src={imagePreview}
                         alt="preview"
-                        className="h-20 w-20 object-cover rounded-xl border border-slate-200"
+                        className="h-20 w-20 object-cover rounded-xl border border-slate-200 dark:border-slate-800"
                       />
                       <button
                         type="button"
@@ -654,7 +649,7 @@ const Chat = () => {
                           setImageFile(null);
                           setImagePreview(null);
                         }}
-                        className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full h-5 w-5 flex items-center justify-center"
+                        className="absolute -top-2 -right-2 bg-rose-500 dark:bg-rose-600 text-white rounded-full h-5 w-5 flex items-center justify-center hover:bg-rose-600 transition-colors shadow"
                       >
                         <X size={12} />
                       </button>
@@ -671,7 +666,7 @@ const Chat = () => {
                     <Button
                       type="button"
                       onClick={() => fileInputRef.current.click()}
-                      className="h-12 w-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 p-0"
+                      className="h-12 w-12 rounded-2xl bg-slate-100 dark:bg-[#1E293B]/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-[#1E293B] transition-colors p-0"
                     >
                       <ImageIcon size={20} />
                     </Button>
@@ -679,11 +674,11 @@ const Chat = () => {
                       placeholder="Type a message..."
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      className="flex-1 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none focus:ring-2 focus:ring-indigo-500"
+                      className="flex-1 h-12 rounded-2xl bg-slate-50 dark:bg-[#1E293B]/40 border-none text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-indigo-500/40 focus:ring-offset-0 transition-all"
                     />
                     <Button
                       type="submit"
-                      className="h-12 w-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none p-0"
+                      className="h-12 w-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-200 dark:shadow-none p-0"
                     >
                       <Send size={20} />
                     </Button>
@@ -691,14 +686,14 @@ const Chat = () => {
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-                <div className="h-20 w-20 rounded-[2.5rem] bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-                  <Send size={32} />
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-slate-50/20 dark:bg-[#080B11]/30">
+                <div className="h-20 w-20 rounded-[2.5rem] bg-slate-100 dark:bg-[#1E293B]/40 flex items-center justify-center mb-4 ring-1 ring-slate-200/50 dark:ring-slate-800/30">
+                  <Send size={32} className="text-indigo-500 dark:text-indigo-400" />
                 </div>
                 <h3 className="text-base font-bold text-slate-600 dark:text-slate-300">
                   Your Messages
                 </h3>
-                <p className="text-xs font-medium">
+                <p className="text-xs font-medium text-slate-400 dark:text-slate-500">
                   Select a team member to start chatting
                 </p>
               </div>
