@@ -1,17 +1,11 @@
-import React, { useEffect, useState, useRef } from "react";
-import { io } from "socket.io-client";
-import axios from "axios";
+import React, { useEffect, useState, useRef } from 'react';
+import { io } from 'socket.io-client';
+import axios from 'axios';
 import { useTheme } from '../../context/ThemeContext';
-import { toast } from "sonner"; // Add this import for toast notifications
-import {
-  Send,
-  User as UserIcon,
-  ChevronLeft,
-  Image as ImageIcon,
-  X,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { toast } from 'sonner'; // Add this import for toast notifications
+import { Send, User as UserIcon, ChevronLeft, Image as ImageIcon, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import User_Sidebar from './UserSidebar';
 import Sidebar_Admin from '../admin/Sidebar_Admin';
 
@@ -21,7 +15,7 @@ const Chat = () => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [currentGroupId, setCurrentGroupId] = useState(null);
   const scrollRef = useRef(null);
@@ -33,30 +27,25 @@ const Chat = () => {
   const fileInputRef = useRef(null);
   // online user here or not
   const [onlineUsers, setOnlineUsers] = useState([]);
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem('token');
   // FAST FIX: Guaranteed ID cleaning and robust comparison
   const cleanId = (idInput) => {
-    if (!idInput || idInput === "null" || idInput === "undefined") return "";
-    const val =
-      typeof idInput === "object"
-        ? idInput._id || idInput.id || idInput
-        : idInput;
-    const str = String(val).replace(/["']/g, "").trim();
-    return str === "null" || str === "undefined" ? "" : str;
+    if (!idInput || idInput === 'null' || idInput === 'undefined') return '';
+    const val = typeof idInput === 'object' ? idInput._id || idInput.id || idInput : idInput;
+    const str = String(val).replace(/["']/g, '').trim();
+    return str === 'null' || str === 'undefined' ? '' : str;
   };
 
   // Initialize myId immediately from localStorage for faster isMe check
-  const [myId, setMyId] = useState(() =>
-    cleanId(localStorage.getItem("userId")),
-  );
-  const role = localStorage.getItem("role");
-  const savedGroupId = localStorage.getItem("groupId");
-  const isAdmin = role === "admin";
+  const [myId, setMyId] = useState(() => cleanId(localStorage.getItem('userId')));
+  const role = localStorage.getItem('role');
+  const savedGroupId = localStorage.getItem('groupId');
+  const isAdmin = role === 'admin';
 
   const isIdMe = (senderId) => {
     const sid = cleanId(senderId);
-    const mid = cleanId(myId || localStorage.getItem("userId"));
-    return sid !== "" && sid === mid;
+    const mid = cleanId(myId || localStorage.getItem('userId'));
+    return sid !== '' && sid === mid;
   };
 
   ///////////////////
@@ -79,13 +68,11 @@ const Chat = () => {
       if (userObj._id) {
         const cleanedUserId = cleanId(userObj._id);
         setMyId(cleanedUserId);
-        localStorage.setItem("userId", cleanedUserId); // Ensure localStorage is also clean
+        localStorage.setItem('userId', cleanedUserId); // Ensure localStorage is also clean
       }
 
       const effectiveGroupId =
-        role === "admin"
-          ? "all"
-          : profile.groupId || userObj.groupId || savedGroupId || "null";
+        role === 'admin' ? 'all' : profile.groupId || userObj.groupId || savedGroupId || 'null';
 
       setCurrentGroupId(effectiveGroupId);
 
@@ -103,38 +90,38 @@ const Chat = () => {
 
   // ---------------- ADD THIS BLOCK HERE ----------------
   useEffect(() => {
-    if (!myId || myId === "null" || !token) return;
+    if (!myId || myId === 'null' || !token) return;
     requestFcmToken().then((fcmToken) => {
-      console.log("🔥 Auth token being sent:", token); // ADD THIS
-      console.log("🔥 FCM TOKEN VALUE:", fcmToken);
+      console.log('🔥 Auth token being sent:', token); // ADD THIS
+      console.log('🔥 FCM TOKEN VALUE:', fcmToken);
       if (fcmToken) {
         axios
           .post(
             `${import.meta.env.VITE_API_URL}/fcm/save-token`,
             { token: fcmToken },
-            { headers: { Authorization: `Bearer ${token}` } },
+            { headers: { Authorization: `Bearer ${token}` } }
           )
-          .then((res) => console.log("✅ Token saved:", res.data))
-          .catch((err) => console.log("❌ Save failed:", err.response?.data));
+          .then((res) => console.log('✅ Token saved:', res.data))
+          .catch((err) => console.log('❌ Save failed:', err.response?.data));
       } else {
-        console.log("⚠️ fcmToken is NULL — permission ya config issue hai");
+        console.log('⚠️ fcmToken is NULL — permission ya config issue hai');
       }
     });
 
     listenForegroundMessages((payload) => {
-      console.log("📩 Received notification payload:", payload);
-      console.log("📩 Notification title:", payload.notification?.title);
-      console.log("📩 Notification body:", payload.notification?.body);
+      console.log('📩 Received notification payload:', payload);
+      console.log('📩 Notification title:', payload.notification?.title);
+      console.log('📩 Notification body:', payload.notification?.body);
 
       // Make sure we have notification data
-      const title = payload.notification?.title || "New Message";
-      const body = payload.notification?.body || "You have a new message";
+      const title = payload.notification?.title || 'New Message';
+      const body = payload.notification?.body || 'You have a new message';
 
       toast(title, {
         description: body,
         onClick: () => {
-          console.log("🔔 Notification clicked!");
-          window.location.href = payload.data?.url || "/chat";
+          console.log('🔔 Notification clicked!');
+          window.location.href = payload.data?.url || '/chat';
         },
       });
     });
@@ -142,7 +129,7 @@ const Chat = () => {
   // -------------------
 
   useEffect(() => {
-    if (!currentGroupId || currentGroupId === "undefined" || !token) return;
+    if (!currentGroupId || currentGroupId === 'undefined' || !token) return;
 
     getUsers(currentGroupId);
 
@@ -154,7 +141,7 @@ const Chat = () => {
   }, [currentGroupId, token]);
 
   const scrollToBottom = () => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -177,11 +164,11 @@ const Chat = () => {
   }, [currentGroupId]);
 
   useEffect(() => {
-    if (!myId || myId === "null") return;
+    if (!myId || myId === 'null') return;
     socketRef.current = io(import.meta.env.VITE_API_URL);
-    socketRef.current.emit("join", myId);
+    socketRef.current.emit('join', myId);
 
-    socketRef.current.on("receive_message", (msg) => {
+    socketRef.current.on('receive_message', (msg) => {
       const activeUser = selectedUserRef.current;
       if (
         activeUser &&
@@ -193,11 +180,9 @@ const Chat = () => {
       if (currentGroupIdRef.current) getUsers(currentGroupIdRef.current);
     });
 
-    socketRef.current.on("online_users", (ids) => {
+    socketRef.current.on('online_users', (ids) => {
       if (Array.isArray(ids)) {
-        const cleanedIds = ids
-          .map((id) => cleanId(id))
-          .filter((id) => id !== "");
+        const cleanedIds = ids.map((id) => cleanId(id)).filter((id) => id !== '');
         setOnlineUsers(cleanedIds);
       }
     });
@@ -211,10 +196,9 @@ const Chat = () => {
   const fetchMessages = async (receiverId) => {
     const myRequestId = ++requestIdRef.current;
     try {
-      const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/chat/messages/${receiverId}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/chat/messages/${receiverId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (myRequestId === requestIdRef.current && Array.isArray(res.data)) {
         setMessages(res.data);
       }
@@ -230,31 +214,28 @@ const Chat = () => {
   };
   const getUsers = async (groupId) => {
     try {
-      if (!token || !groupId || groupId === "undefined") return;
+      if (!token || !groupId || groupId === 'undefined') return;
 
       // Map actual null/empty values to "null" string so the backend can route/query correctly
       const targetGroupId = isAdmin
-        ? "all"
-        : !groupId || groupId === "null" || groupId === "undefined"
-          ? "null"
+        ? 'all'
+        : !groupId || groupId === 'null' || groupId === 'undefined'
+          ? 'null'
           : groupId;
 
-      const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/chat/users/${targetGroupId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "user-id": myId && myId !== "null" ? String(myId) : "",
-          },
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/chat/users/${targetGroupId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'user-id': myId && myId !== 'null' ? String(myId) : '',
         },
-      );
+      });
       setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       if (err.response && err.response.status === 404) {
         // If the server returns 404, it means no users were found for this group
         setUsers([]);
       } else {
-        console.error("AxiosError fetching users:", err);
+        console.error('AxiosError fetching users:', err);
       }
     }
   };
@@ -266,7 +247,7 @@ const Chat = () => {
     if (urlChatOpenedRef.current) return; // already open ho chuka, dobara mat chalao
 
     const params = new URLSearchParams(window.location.search);
-    const targetId = params.get("userId");
+    const targetId = params.get('userId');
     if (targetId && users.length > 0) {
       const found = users.find((u) => cleanId(u._id) === cleanId(targetId));
       if (found) {
@@ -274,7 +255,7 @@ const Chat = () => {
         urlChatOpenedRef.current = true; // mark as done
 
         // URL se ?userId= hata do taaki refresh pe dobara trigger na ho
-        window.history.replaceState({}, "", "/chat");
+        window.history.replaceState({}, '', '/chat');
       }
     }
   }, [users]);
@@ -297,39 +278,32 @@ const Chat = () => {
 
     try {
       const formData = new FormData();
-      formData.append("receiverId", selectedUser._id);
-      formData.append("message", message.trim());
-      if (imageFile) formData.append("image", imageFile);
+      formData.append('receiverId', selectedUser._id);
+      formData.append('message', message.trim());
+      if (imageFile) formData.append('image', imageFile);
 
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/chat/send`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/chat/send`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       if (res.data) {
         const newMsg = {
           ...res.data,
           senderId: res.data.senderId || myId,
         };
-        socketRef.current.emit("sendMessage", newMsg);
+        socketRef.current.emit('sendMessage', newMsg);
         setMessages((prev) => [...prev, newMsg]);
-        setMessage("");
+        setMessage('');
         setImageFile(null);
         setImagePreview(null);
         if (currentGroupId) getUsers(currentGroupId);
       }
     } catch (err) {
-      console.error(
-        "Failed to send message. Server says:",
-        err.response?.data || err.message,
-      );
+      console.error('Failed to send message. Server says:', err.response?.data || err.message);
       if (err.response?.status === 500) {
-        console.error("Check your Node.js console for the full stack trace!");
+        console.error('Check your Node.js console for the full stack trace!');
       }
     }
   };
@@ -340,10 +314,10 @@ const Chat = () => {
 
     const categories = {};
 
-    if (currentGroupId === "all") {
+    if (currentGroupId === 'all') {
       // Admin View: Group users by their actual groupId field
       filtered.forEach((u) => {
-        const groupName = u.groupId || "Ungrouped Users";
+        const groupName = u.groupId || 'Ungrouped Users';
         if (!categories[groupName]) categories[groupName] = [];
         categories[groupName].push(u);
       });
@@ -357,21 +331,19 @@ const Chat = () => {
         const isMember =
           u.groupId === currentGroupId ||
           (!u.groupId &&
-            (!currentGroupId ||
-              currentGroupId === "null" ||
-              currentGroupId === "undefined"));
+            (!currentGroupId || currentGroupId === 'null' || currentGroupId === 'undefined'));
         if (isMember) {
           members.push(u);
-        } else if (u.role === "admin") {
+        } else if (u.role === 'admin') {
           admins.push(u);
         } else {
           others.push(u);
         }
       });
 
-      if (members.length > 0) categories["Group Members"] = members;
-      if (admins.length > 0) categories["Administrators"] = admins;
-      if (others.length > 0) categories["Other Conversations"] = others;
+      if (members.length > 0) categories['Group Members'] = members;
+      if (admins.length > 0) categories['Administrators'] = admins;
+      if (others.length > 0) categories['Other Conversations'] = others;
     }
 
     return categories;
@@ -384,24 +356,23 @@ const Chat = () => {
     <button
       key={u._id}
       onClick={() => openChat(u)}
-      className={`flex items-center gap-3 w-full p-3 rounded-2xl transition-all ${String(selectedUser?._id) === String(u._id)
-        ? "bg-indigo-50/80 dark:bg-indigo-600/15 ring-1 ring-indigo-100 dark:ring-indigo-500/30"
-        : "hover:bg-slate-50 dark:hover:bg-slate-800/30"
-        }`}
+      className={`flex items-center gap-3 w-full p-3 rounded-2xl transition-all ${
+        String(selectedUser?._id) === String(u._id)
+          ? 'bg-indigo-50/80 dark:bg-indigo-600/15 ring-1 ring-indigo-100 dark:ring-indigo-500/30'
+          : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'
+      }`}
     >
       <div className="relative shrink-0 group">
         <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-950 dark:to-indigo-900/60 flex items-center justify-center ring-1 ring-indigo-200/50 dark:ring-indigo-500/20">
-          <UserIcon
-            size={20}
-            className="text-indigo-600 dark:text-indigo-400"
-          />
+          <UserIcon size={20} className="text-indigo-600 dark:text-indigo-400" />
         </div>
         {/* The Green Dot Indicator */}
         <span
-          className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white dark:border-[#0B0F19] ${onlineUsers.some((oid) => oid === cleanId(u._id))
-            ? "bg-emerald-500"
-            : "bg-slate-300 dark:bg-slate-700"
-            }`}
+          className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white dark:border-[#0B0F19] ${
+            onlineUsers.some((oid) => oid === cleanId(u._id))
+              ? 'bg-emerald-500'
+              : 'bg-slate-300 dark:bg-slate-700'
+          }`}
         ></span>
         {u.lastMessage &&
           !isIdMe(u.lastMessage.senderId) &&
@@ -415,7 +386,7 @@ const Chat = () => {
             {u.fullname ||
               u.fullName ||
               u.name ||
-              (u.email ? u.email.split("@")[0] : "Team Member")}
+              (u.email ? u.email.split('@')[0] : 'Team Member')}
 
             {/* only name show no email {(u.fullname && !u.fullname.includes("@") && u.fullname) ||
               (u.fullName && !u.fullName.includes("@") && u.fu  llName) ||
@@ -425,23 +396,23 @@ const Chat = () => {
           {u.lastMessage && (
             <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
               {new Date(u.lastMessage.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
+                hour: '2-digit',
+                minute: '2-digit',
               })}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1">
           <p
-            className={`text-xs truncate ${u.lastMessage && !isIdMe(u.lastMessage.senderId) && (!selectedUser || String(selectedUser._id) !== String(u._id)) ? "font-bold text-slate-900 dark:text-slate-100" : "text-slate-400 dark:text-slate-500 font-medium"}`}
+            className={`text-xs truncate ${u.lastMessage && !isIdMe(u.lastMessage.senderId) && (!selectedUser || String(selectedUser._id) !== String(u._id)) ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500 font-medium'}`}
           >
             {u.lastMessage ? (
               <>
-                {isIdMe(u.lastMessage.senderId) ? "You: " : ""}
+                {isIdMe(u.lastMessage.senderId) ? 'You: ' : ''}
                 {u.lastMessage.text}
               </>
             ) : (
-              "Tap to chat"
+              'Tap to chat'
             )}
           </p>
         </div>
@@ -451,7 +422,7 @@ const Chat = () => {
 
   return (
     <div
-      className={`flex min-h-screen ${theme === "dark" ? "bg-[#090D16] text-white" : "bg-slate-50 text-slate-900"}`}
+      className={`flex min-h-screen ${theme === 'dark' ? 'bg-[#090D16] text-white' : 'bg-slate-50 text-slate-900'}`}
     >
       <style>
         {`
@@ -467,7 +438,7 @@ const Chat = () => {
             currentUser?.fullname ||
             currentUser?.fullName ||
             currentUser?.name ||
-            (currentUser?.email ? currentUser.email.split("@")[0] : "Me")
+            (currentUser?.email ? currentUser.email.split('@')[0] : 'Me')
           }
         />
       )}
@@ -476,16 +447,16 @@ const Chat = () => {
         <div className="flex flex-1 overflow-hidden">
           {/* User List Sidebar */}
           <div
-            className={`w-full md:w-80 border-r border-slate-200 dark:border-slate-800/60 flex flex-col bg-white dark:bg-[#0B0F19] ${selectedUser ? "hidden md:flex" : "flex"}`}
+            className={`w-full md:w-80 border-r border-slate-200 dark:border-slate-800/60 flex flex-col bg-white dark:bg-[#0B0F19] ${selectedUser ? 'hidden md:flex' : 'flex'}`}
           >
             <div className="p-4 border-b border-slate-200 dark:border-slate-800/60">
               <h2 className="text-lg font-black tracking-tight uppercase text-indigo-500 dark:text-indigo-400">
                 Messages
               </h2>
               <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-                Group:{" "}
-                {!currentUser?.groupId || currentUser?.groupId === "null"
-                  ? "Public / Ungrouped"
+                Group:{' '}
+                {!currentUser?.groupId || currentUser?.groupId === 'null'
+                  ? 'Public / Ungrouped'
                   : currentUser.groupId}
               </p>
             </div>
@@ -497,9 +468,7 @@ const Chat = () => {
                       <p className="px-3 py-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800/30 mb-1">
                         {groupTitle}
                       </p>
-                      <div className="space-y-1">
-                        {userList.map(renderUserItem)}
-                      </div>
+                      <div className="space-y-1">{userList.map(renderUserItem)}</div>
                     </div>
                   ))
                 ) : (
@@ -513,9 +482,9 @@ const Chat = () => {
             </div>
           </div>
 
-          {/* Chat Window */}
+          {/* Chat Wind ow */}
           <div
-            className={`flex-1 flex flex-col bg-slate-50/30 dark:bg-[#080B11] ${selectedUser ? "flex" : "hidden md:flex"}`}
+            className={`flex-1 flex flex-col bg-slate-50/30 dark:bg-[#080B11] ${selectedUser ? 'flex' : 'hidden md:flex'}`}
           >
             {selectedUser ? (
               <>
@@ -537,7 +506,7 @@ const Chat = () => {
                         selectedUser.fullName ||
                         selectedUser.name ||
                         selectedUser.email ||
-                        "U"
+                        'U'
                       )
                         .charAt(0)
                         .toUpperCase()}
@@ -551,19 +520,16 @@ const Chat = () => {
                     </h3>
                     <div className="flex items-center gap-1.5">
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${onlineUsers.some(
-                          (oid) => oid === cleanId(selectedUser._id),
-                        )
-                          ? "bg-emerald-500"
-                          : "bg-slate-300 dark:bg-slate-600"
-                          }`}
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          onlineUsers.some((oid) => oid === cleanId(selectedUser._id))
+                            ? 'bg-emerald-500'
+                            : 'bg-slate-300 dark:bg-slate-600'
+                        }`}
                       />
                       <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                        {onlineUsers.some(
-                          (oid) => oid === cleanId(selectedUser._id),
-                        )
-                          ? "Online"
-                          : "Offline"}
+                        {onlineUsers.some((oid) => oid === cleanId(selectedUser._id))
+                          ? 'Online'
+                          : 'Offline'}
                       </span>
                     </div>
                   </div>
@@ -576,9 +542,7 @@ const Chat = () => {
                       <p className="text-[10px] font-black uppercase tracking-widest">
                         No messages yet
                       </p>
-                      <p className="text-[10px]">
-                        Say hi to start the conversation
-                      </p>
+                      <p className="text-[10px]">Say hi to start the conversation</p>
                     </div>
                   ) : (
                     messages.map((msg, i) => {
@@ -588,13 +552,14 @@ const Chat = () => {
                       return (
                         <div
                           key={msg._id || i}
-                          className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}
+                          className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`relative max-w-[85%] md:max-w-[75%] lg:max-w-[65%] px-4 py-2.5 rounded-2xl text-[13.5px] font-medium shadow-sm transition-all ${isMe
-                              ? "bg-indigo-600 dark:bg-gradient-to-r dark:from-indigo-600 dark:to-violet-600 text-white rounded-tr-none shadow-indigo-500/10 dark:shadow-indigo-950/40"
-                              : "bg-white dark:bg-[#1E293B]/70 text-slate-800 dark:text-slate-100 rounded-tl-none border border-slate-100 dark:border-slate-800/40 shadow-sm"
-                              }`}
+                            className={`relative max-w-[85%] md:max-w-[75%] lg:max-w-[65%] px-4 py-2.5 rounded-2xl text-[13.5px] font-medium shadow-sm transition-all ${
+                              isMe
+                                ? 'bg-indigo-600 dark:bg-gradient-to-r dark:from-indigo-600 dark:to-violet-600 text-white rounded-tr-none shadow-indigo-500/10 dark:shadow-indigo-950/40'
+                                : 'bg-white dark:bg-[#1E293B]/70 text-slate-800 dark:text-slate-100 rounded-tl-none border border-slate-100 dark:border-slate-800/40 shadow-sm'
+                            }`}
                           >
                             {msg.imageUrl && (
                               <img
@@ -602,10 +567,7 @@ const Chat = () => {
                                 alt="sent"
                                 className="rounded-xl max-w-[220px] mb-1.5 cursor-pointer hover:opacity-95 transition-opacity"
                                 onClick={() =>
-                                  window.open(
-                                    `http://localhost:5000${msg.imageUrl}`,
-                                    "_blank",
-                                  )
+                                  window.open(`http://localhost:5000${msg.imageUrl}`, '_blank')
                                 }
                               />
                             )}
@@ -615,14 +577,13 @@ const Chat = () => {
                               </p>
                             )}
                             <p
-                              className={`text-[9px] mt-1 text-right font-black uppercase tracking-widest opacity-60 ${isMe ? "text-indigo-200/90" : "text-slate-400 dark:text-slate-500"
-                                }`}
+                              className={`text-[9px] mt-1 text-right font-black uppercase tracking-widest opacity-60 ${
+                                isMe ? 'text-indigo-200/90' : 'text-slate-400 dark:text-slate-500'
+                              }`}
                             >
-                              {new Date(
-                                msg.createdAt || Date.now(),
-                              ).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
+                              {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
                               })}
                             </p>
                           </div>
