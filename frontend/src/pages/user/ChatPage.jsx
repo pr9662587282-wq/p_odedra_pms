@@ -249,6 +249,24 @@ const Chat = () => {
     }
   };
 
+  // ── Force refresh token (clears old token, gets new one) ──────────────────
+  const forceRefreshToken = async () => {
+    try {
+      // Clear old SW registration to force new token
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) await reg.unregister();
+      }
+      fcmRegisteredRef.current = false;
+      await registerFcmToken();
+      if (typeof Notification !== 'undefined') {
+        setNotifPermission(Notification.permission);
+      }
+    } catch (e) {
+      console.error('Force refresh failed:', e.message);
+    }
+  };
+
   useEffect(() => {
     if (!currentGroupId || currentGroupId === 'undefined' || !token) return;
 
@@ -646,7 +664,13 @@ const Chat = () => {
                     <span className="text-[10px] text-red-400 font-medium">🔕 Blocked</span>
                   )}
                   {notifPermission === 'granted' && (
-                    <span className="text-[10px] text-emerald-500 font-bold">🔔 On</span>
+                    <button
+                      onClick={forceRefreshToken}
+                      className="text-[10px] text-emerald-500 font-bold hover:text-emerald-600"
+                      title="Refresh notification token"
+                    >
+                      🔔 On ↺
+                    </button>
                   )}
                 </div>
               </div>
