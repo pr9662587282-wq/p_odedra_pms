@@ -26,9 +26,13 @@ const Chat = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
   // online user here or not
+  const [debugInfo, setDebugInfo] = useState([]);
+  const addDebug = (msg) => {
+    const time = new Date().toLocaleTimeString();
+    setDebugInfo((prev) => [`[${time}] ${msg}`, ...prev].slice(0, 15));
+  };
   const [onlineUsers, setOnlineUsers] = useState([]);
   const token = localStorage.getItem('token');
-  // FAST FIX: Guaranteed ID cleaning and robust comparison
   const cleanId = (idInput) => {
     if (!idInput || idInput === 'null' || idInput === 'undefined') return '';
     const val = typeof idInput === 'object' ? idInput._id || idInput.id || idInput : idInput;
@@ -95,36 +99,43 @@ const Chat = () => {
     // Register FCM token and save to backend — with full logging
     requestFcmToken().then((fcmToken) => {
       if (fcmToken) {
-        console.log('📲 Saving FCM token to backend...');
+        addDebug('✅ FCM token got: ' + fcmToken.substring(0, 20) + '...');
         axios
           .post(
             `${import.meta.env.VITE_API_URL}/fcm/save-token`,
             { token: fcmToken },
             { headers: { Authorization: `Bearer ${token}` } }
           )
-          .then((res) => console.log('✅ FCM token saved. Total tokens:', res.data?.tokenCount))
-          .catch((err) => console.error('❌ FCM save failed:', err.response?.data || err.message));
+          .then((res) => {
+            addDebug('✅ Token saved to DB. Total: ' + res.data?.tokenCount);
+            console.log('✅ FCM token saved. Total tokens:', res.data?.tokenCount);
+          })
+          .catch((err) => {
+            addDebug('❌ Save failed: ' + (err.response?.data?.message || err.message));
+            console.error('❌ FCM save failed:', err.response?.data || err.message);
+          });
       } else {
+        addDebug('❌ FCM token NULL — check permission/HTTPS');
         console.warn('⚠️ FCM token is null — notification permission denied or SW failed');
       }
+    }).catch((err) => {
+      addDebug('❌ requestFcmToken threw: ' + err.message);
     });
 
     // Foreground message handler
-    // Mobile: firebase.js shows real OS notification bar (no toast needed)
-    // Desktop: shows WhatsApp-style in-app toast
     listenForegroundMessages((payload) => {
       const title    = payload.notification?.title || 'New Message';
       const body     = payload.notification?.body  || 'You have a new message';
       const chatUrl  = payload.data?.url            || '/chat';
       const senderId = payload.data?.senderId       || '';
 
-      // Skip toast if user is already in that exact chat window (both PC & mobile)
+      addDebug('📩 Foreground msg from: ' + (payload.data?.senderName || senderId));
+
       const alreadyInChat =
         selectedUserRef.current &&
         cleanId(selectedUserRef.current._id) === cleanId(senderId);
       if (alreadyInChat) return;
 
-      // WhatsApp-style green toast (desktop only — mobile goes to OS bar via firebase.js)
       toast(title, {
         description: body,
         duration: 6000,
@@ -152,33 +163,34 @@ const Chat = () => {
             }
           },
         },
-        cancel: {
-          label: '✕',
-          onClick: () => {},
-        },
+        cancel: { label: '✕', onClick: () => {} },
       });
     });
   }, [myId, token]);
 
   // Test push button handler — call this from mobile browser to verify end-to-end
   const sendTestPush = async () => {
+    addDebug('🧪 Sending test push...');
     try {
       const res = await axios.post(
         `${import.meta.env.VITE_API_URL}/fcm/test-push`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      console.log('🧪 Test push result:', res.data);
+      addDebug(`🧪 Result: ✅${res.data.successCount} ❌${res.data.failureCount}`);
+      if (res.data.details) {
+        res.data.details.forEach((d) => {
+          addDebug(`  token: ${d.token} → ${d.success ? '✅' : '❌ ' + d.error}`);
+        });
+      }
       toast('Test sent!', {
         description: `Success: ${res.data.successCount}, Failed: ${res.data.failureCount}`,
         duration: 5000,
       });
     } catch (err) {
-      console.error('❌ Test push failed:', err.response?.data || err.message);
-      toast('Test push failed', {
-        description: err.response?.data?.message || err.message,
-        duration: 5000,
-      });
+      const msg = err.response?.data?.message || err.message;
+      addDebug('❌ Test push error: ' + msg);
+      toast('Test push failed', { description: msg, duration: 5000 });
     }
   };
   // -------------------
@@ -522,6 +534,24 @@ const Chat = () => {
                 🧪 Test Push
               </button>
             </div>
+
+            {/* ── On-screen Debug Panel (no DevTools needed) ── */}
+            {debugInfo.length > 0 && (
+              <div className="mx-2 mt-2 mb-1 rounded-xl bg-black/80 text-green-400 font-mono text-[10px] p-2 max-h-40 overflow-y-auto">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-yellow-400 font-bold">🔍 FCM Debug</span>
+                  <button
+                    onClick={() => setDebugInfo([])}
+                    className="text-red-400 hover:text-red-300 text-[9px]"
+                  >
+                    Clear
+                  </button>
+                </div>
+                {debugInfo.map((line, i) => (
+                  <div key={i} className="leading-relaxed break-all">{line}</div>
+                ))}
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto no-scrollbar">
               <div className="p-2 space-y-1">
                 {hasUsers ? (
