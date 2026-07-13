@@ -153,7 +153,7 @@ const Chat = () => {
       if (userObj._id) {
         const cleanedUserId = cleanId(userObj._id);
         setMyId(cleanedUserId);
-        localStorage.setItem('userId', cleanedUserId); // Ensure localStorage is also clean
+        localStorage.setItem('userId', cleanedUserId);
       }
 
       const effectiveGroupId =
@@ -173,24 +173,34 @@ const Chat = () => {
     }
   }, []);
 
-  // ── Register FCM token (silent, no debug output) ─────────────────────────────
+  const fcmRegisteredRef = useRef(false);
+
+  // ── Register FCM token — called on load if already granted, or on button click ──
   const registerFcmToken = async () => {
-    const { token: fcmToken, error } = await requestFcmToken();
-    if (error || !fcmToken) return;
-    setNotifPermission('granted');
-    axios
-      .post(
+    try {
+      const { token: fcmToken, error } = await requestFcmToken();
+      if (error || !fcmToken) {
+        console.warn('FCM token not obtained:', error);
+        return;
+      }
+      setNotifPermission('granted');
+      const res = await axios.post(
         `${import.meta.env.VITE_API_URL}/fcm/save-token`,
         { token: fcmToken },
         { headers: { Authorization: `Bearer ${token}` } }
-      )
-      .catch(() => {});
+      );
+      console.log('✅ FCM token saved, total:', res.data?.tokenCount);
+      fcmRegisteredRef.current = true;
+    } catch (err) {
+      console.error('FCM save error:', err.response?.data || err.message);
+    }
   };
 
   useEffect(() => {
     if (!myId || myId === 'null' || !token) return;
+    if (fcmRegisteredRef.current) return; // already registered this session
 
-    // If already granted — silently register token (no popup)
+    // Register token if permission already granted
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       registerFcmToken();
     }
@@ -222,14 +232,8 @@ const Chat = () => {
           onClick: () => {
             if (senderId) {
               const found = users.find((u) => cleanId(u._id) === cleanId(senderId));
-              if (found) {
-                openChat(found);
-              } else {
-                window.location.href = chatUrl;
-              }
-            } else {
-              window.location.href = chatUrl;
-            }
+              if (found) { openChat(found); } else { window.location.href = chatUrl; }
+            } else { window.location.href = chatUrl; }
           },
         },
         cancel: { label: '✕', onClick: () => {} },
