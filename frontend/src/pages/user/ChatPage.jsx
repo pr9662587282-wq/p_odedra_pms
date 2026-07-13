@@ -21,16 +21,10 @@ const Chat = () => {
   const scrollRef = useRef(null);
 
   const { theme } = useTheme();
-  const [isLoading, setIsLoading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
   // online user here or not
-  const [debugInfo, setDebugInfo] = useState([]);
-  const addDebug = (msg) => {
-    const time = new Date().toLocaleTimeString();
-    setDebugInfo((prev) => [`[${time}] ${msg}`, ...prev].slice(0, 15));
-  };
   const [onlineUsers, setOnlineUsers] = useState([]);
   // Track notification permission — 'granted' | 'denied' | 'default'
   const [notifPermission, setNotifPermission] = useState(
@@ -96,27 +90,18 @@ const Chat = () => {
     }
   }, []);
 
-  // ---------------- ADD THIS BLOCK HERE ----------------
-  // ── Register FCM token only when permission already granted ──────────────────
-  // Never auto-request permission — user must click "Enable Notifications" button
+  // ── Register FCM token (silent, no debug output) ─────────────────────────────
   const registerFcmToken = async () => {
     const { token: fcmToken, error } = await requestFcmToken();
-    if (error) {
-      addDebug('❌ ' + error);
-      return;
-    }
-    if (fcmToken) {
-      addDebug('✅ Token: ' + fcmToken.substring(0, 18) + '...');
-      setNotifPermission('granted');
-      axios
-        .post(
-          `${import.meta.env.VITE_API_URL}/fcm/save-token`,
-          { token: fcmToken },
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-        .then((res) => addDebug('✅ Saved. Tokens: ' + res.data?.tokenCount))
-        .catch((err) => addDebug('❌ Save failed: ' + (err.response?.data?.message || err.message)));
-    }
+    if (error || !fcmToken) return;
+    setNotifPermission('granted');
+    axios
+      .post(
+        `${import.meta.env.VITE_API_URL}/fcm/save-token`,
+        { token: fcmToken },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -166,40 +151,12 @@ const Chat = () => {
 
   // ── Called when user taps "Enable Notifications" button ───────────────────
   const handleEnableNotifications = async () => {
-    addDebug('🔔 Requesting permission...');
     await registerFcmToken();
-    // Update state so button disappears after allow
     if (typeof Notification !== 'undefined') {
       setNotifPermission(Notification.permission);
     }
   };
 
-  // Test push button handler — call this from mobile browser to verify end-to-end
-  const sendTestPush = async () => {
-    addDebug('🧪 Sending test push...');
-    try {
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/fcm/test-push`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      addDebug(`🧪 Result: ✅${res.data.successCount} ❌${res.data.failureCount}`);
-      if (res.data.details) {
-        res.data.details.forEach((d) => {
-          addDebug(`  token: ${d.token} → ${d.success ? '✅' : '❌ ' + d.error}`);
-        });
-      }
-      toast('Test sent!', {
-        description: `Success: ${res.data.successCount}, Failed: ${res.data.failureCount}`,
-        duration: 5000,
-      });
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message;
-      addDebug('❌ Test push error: ' + msg);
-      toast('Test push failed', { description: msg, duration: 5000 });
-    }
-  };
-  // -------------------
 
   useEffect(() => {
     if (!currentGroupId || currentGroupId === 'undefined' || !token) return;
@@ -537,7 +494,6 @@ const Chat = () => {
                 </div>
 
                 <div className="flex flex-col items-end gap-1">
-                  {/* Show enable button only when permission not granted */}
                   {notifPermission !== 'granted' && notifPermission !== 'denied' && (
                     <button
                       onClick={handleEnableNotifications}
@@ -547,43 +503,15 @@ const Chat = () => {
                     </button>
                   )}
                   {notifPermission === 'denied' && (
-                    <span className="text-[10px] text-red-400 font-medium">
-                      🔕 Blocked in browser
-                    </span>
+                    <span className="text-[10px] text-red-400 font-medium">🔕 Blocked</span>
                   )}
                   {notifPermission === 'granted' && (
-                    <span className="text-[10px] text-emerald-500 font-bold">
-                      🔔 Notifications On
-                    </span>
+                    <span className="text-[10px] text-emerald-500 font-bold">🔔 On</span>
                   )}
-                  {/* Debug test button */}
-                  <button
-                    onClick={sendTestPush}
-                    className="text-[9px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    🧪 test
-                  </button>
                 </div>
               </div>
             </div>
 
-            {/* ── On-screen Debug Panel (no DevTools needed) ── */}
-            {debugInfo.length > 0 && (
-              <div className="mx-2 mt-2 mb-1 rounded-xl bg-black/80 text-green-400 font-mono text-[10px] p-2 max-h-40 overflow-y-auto">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-yellow-400 font-bold">🔍 FCM Debug</span>
-                  <button
-                    onClick={() => setDebugInfo([])}
-                    className="text-red-400 hover:text-red-300 text-[9px]"
-                  >
-                    Clear
-                  </button>
-                </div>
-                {debugInfo.map((line, i) => (
-                  <div key={i} className="leading-relaxed break-all">{line}</div>
-                ))}
-              </div>
-            )}
             <div className="flex-1 overflow-y-auto no-scrollbar">
               <div className="p-2 space-y-1">
                 {hasUsers ? (
