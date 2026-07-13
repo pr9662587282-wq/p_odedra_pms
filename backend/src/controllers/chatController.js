@@ -495,17 +495,52 @@ const sendMessage = async (req, res) => {
       if (receiverUser?.fcmTokens?.length) {
         const senderUser =
           await User.findById(actualSenderId).select("fullname email");
+        const senderDisplayName = senderUser?.fullname || senderUser?.email || "New message";
+        const msgBody = message?.trim() ? message : "📷 Sent an image";
         const payload = {
           notification: {
-            title: senderUser?.fullname || senderUser?.email || "New message",
-            body: message?.trim() ? message : "📷 Sent an image",
+            title: senderDisplayName,
+            body: msgBody,
           },
           data: {
             senderId: actualSenderId.toString(),
+            senderName: senderDisplayName,
+            messageText: msgBody,
             click_action: "OPEN_CHAT",
+            // Full path with userId so SW can open the right chat directly
             url: `/chat?userId=${actualSenderId}`,
           },
           tokens: receiverUser.fcmTokens,
+          // Android: high priority so the notification wakes the screen
+          android: {
+            priority: "high",
+            notification: {
+              channelId: "chat_messages",
+              priority: "max",
+              defaultSound: true,
+              defaultVibrateTimings: true,
+              clickAction: "OPEN_CHAT",
+            },
+          },
+          // Web push: use Notification API urgency hint
+          webpush: {
+            headers: {
+              Urgency: "high",
+            },
+            notification: {
+              title: senderDisplayName,
+              body: msgBody,
+              icon: "/icons/icon-192x192.png",
+              badge: "/icons/badge-72x72.png",
+              tag: `/chat?userId=${actualSenderId}`,
+              renotify: true,
+              requireInteraction: false,
+              vibrate: [200, 100, 200],
+            },
+            fcmOptions: {
+              link: `/chat?userId=${actualSenderId}`,
+            },
+          },
         };
 
         const response = await messaging.sendEachForMulticast(payload);

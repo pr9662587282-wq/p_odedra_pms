@@ -91,9 +91,9 @@ const Chat = () => {
   // ---------------- ADD THIS BLOCK HERE ----------------
   useEffect(() => {
     if (!myId || myId === 'null' || !token) return;
+
+    // Register FCM token and save to backend
     requestFcmToken().then((fcmToken) => {
-      console.log('🔥 Auth token being sent:', token); // ADD THIS
-      console.log('🔥 FCM TOKEN VALUE:', fcmToken);
       if (fcmToken) {
         axios
           .post(
@@ -101,27 +101,60 @@ const Chat = () => {
             { token: fcmToken },
             { headers: { Authorization: `Bearer ${token}` } }
           )
-          .then((res) => console.log('✅ Token saved:', res.data))
+          .then(() => console.log('✅ FCM token saved'))
           .catch((err) => console.log('❌ Save failed:', err.response?.data));
-      } else {
-        console.log('⚠️ fcmToken is NULL — permission ya config issue hai');
       }
     });
 
+    // Foreground message handler — WhatsApp-style toast
     listenForegroundMessages((payload) => {
-      console.log('📩 Received notification payload:', payload);
-      console.log('📩 Notification title:', payload.notification?.title);
-      console.log('📩 Notification body:', payload.notification?.body);
-
-      // Make sure we have notification data
       const title = payload.notification?.title || 'New Message';
-      const body = payload.notification?.body || 'You have a new message';
+      const body  = payload.notification?.body  || 'You have a new message';
+      const chatUrl = payload.data?.url || '/chat';
+      const senderId = payload.data?.senderId || '';
 
+      // Only show if the notification is NOT from the currently open chat
+      const alreadyInChat =
+        selectedUserRef.current &&
+        cleanId(selectedUserRef.current._id) === cleanId(senderId);
+
+      if (alreadyInChat) return; // Don't spam toast if user is already reading
+
+      // WhatsApp-style: sender name as title, message as description
       toast(title, {
         description: body,
-        onClick: () => {
-          console.log('🔔 Notification clicked!');
-          window.location.href = payload.data?.url || '/chat';
+        duration: 6000,
+        style: {
+          background: '#128C7E',      // WhatsApp green
+          color: '#fff',
+          borderRadius: '12px',
+          padding: '12px 16px',
+          fontWeight: '600',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+          cursor: 'pointer',
+        },
+        action: {
+          label: '💬 Open',
+          onClick: () => {
+            // Navigate to the specific chat without requiring re-login
+            // Token is already in localStorage — just navigate
+            if (senderId) {
+              // Find user in list and open chat directly
+              const found = users.find((u) => cleanId(u._id) === cleanId(senderId));
+              if (found) {
+                openChat(found);
+              } else {
+                // Fallback: navigate with userId param
+                window.location.href = `${chatUrl}`;
+              }
+            } else {
+              window.location.href = chatUrl;
+            }
+          },
+        },
+        cancel: {
+          label: '✕',
+          onClick: () => {},
         },
       });
     });
