@@ -58,11 +58,16 @@ export const requestFcmToken = async () => {
       return { token: null, error: "Notifications API not available" };
     }
 
-    // Request permission
+    // ── Permission check — ask only if not yet decided (never spam "default" repeatedly)
     let permission = Notification.permission;
+    if (permission === "denied") {
+      return { token: null, error: "Permission blocked — user must enable in browser settings" };
+    }
     if (permission === "default") {
+      // First time — show the native browser prompt ONCE
       permission = await Notification.requestPermission();
     }
+    // If still not granted after prompt
     if (permission !== "granted") {
       return { token: null, error: `Permission: ${permission}` };
     }
