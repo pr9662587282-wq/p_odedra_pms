@@ -1,25 +1,29 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema(
   {
+    deleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
+    edited: { type: Boolean, default: false },
+    editedAt: { type: Date, default: null },
     senderId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
     receiverId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
     message: {
       type: String,
-      default: "",
+      default: '',
     },
     imageUrl: { type: String, default: null },
   },
 
-  { timestamps: true },
+  { timestamps: true }
 );
 
-module.exports = mongoose.model("Message", messageSchema);
+module.exports = mongoose.model('Message', messageSchema);

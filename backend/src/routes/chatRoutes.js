@@ -4,7 +4,13 @@ const path = require('path');
 
 const { authMiddleware } = require('../controllers/userController');
 
-const { getUsersByGroup, sendMessage, getMessages } = require('../controllers/chatController');
+const {
+  getUsersByGroup,
+  sendMessage,
+  getMessages,
+  editMessage,
+  deleteMessage,
+} = require('../controllers/chatController');
 
 // Use memory storage for Multer to get file buffer for Cloudinary upload
 const multer = require('multer');
@@ -15,5 +21,7 @@ router.get('/users/:groupId', authMiddleware, getUsersByGroup);
 
 router.post('/send', authMiddleware, upload.single('image'), sendMessage);
 router.get('/messages/:receiverId', authMiddleware, getMessages);
+router.put('/chat/edit/:messageId', authMiddleware, editMessage);
+router.delete('/chat/delete/:messageId', authMiddleware, deleteMessage);
 
 module.exports = router;
