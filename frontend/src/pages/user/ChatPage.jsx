@@ -106,26 +106,27 @@ const Chat = () => {
       }
     });
 
-    // Foreground message handler — WhatsApp-style toast
+    // Foreground message handler
+    // Mobile: firebase.js shows real OS notification bar (no toast needed)
+    // Desktop: shows WhatsApp-style in-app toast
     listenForegroundMessages((payload) => {
-      const title = payload.notification?.title || 'New Message';
-      const body  = payload.notification?.body  || 'You have a new message';
-      const chatUrl = payload.data?.url || '/chat';
-      const senderId = payload.data?.senderId || '';
+      const title    = payload.notification?.title || 'New Message';
+      const body     = payload.notification?.body  || 'You have a new message';
+      const chatUrl  = payload.data?.url            || '/chat';
+      const senderId = payload.data?.senderId       || '';
 
-      // Only show if the notification is NOT from the currently open chat
+      // Skip toast if user is already in that exact chat window (both PC & mobile)
       const alreadyInChat =
         selectedUserRef.current &&
         cleanId(selectedUserRef.current._id) === cleanId(senderId);
+      if (alreadyInChat) return;
 
-      if (alreadyInChat) return; // Don't spam toast if user is already reading
-
-      // WhatsApp-style: sender name as title, message as description
+      // WhatsApp-style green toast (desktop only — mobile goes to OS bar via firebase.js)
       toast(title, {
         description: body,
         duration: 6000,
         style: {
-          background: '#128C7E',      // WhatsApp green
+          background: '#128C7E',
           color: '#fff',
           borderRadius: '12px',
           padding: '12px 16px',
@@ -136,16 +137,12 @@ const Chat = () => {
         action: {
           label: '💬 Open',
           onClick: () => {
-            // Navigate to the specific chat without requiring re-login
-            // Token is already in localStorage — just navigate
             if (senderId) {
-              // Find user in list and open chat directly
               const found = users.find((u) => cleanId(u._id) === cleanId(senderId));
               if (found) {
                 openChat(found);
               } else {
-                // Fallback: navigate with userId param
-                window.location.href = `${chatUrl}`;
+                window.location.href = chatUrl;
               }
             } else {
               window.location.href = chatUrl;

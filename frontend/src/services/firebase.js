@@ -16,7 +16,14 @@ const VAPID_KEY =
 
 const app = initializeApp(firebaseConfig);
 
-// ─── Lazy messaging instance (FCM not supported on all browsers/iOS) ──────────
+// ─── Check if device is mobile ────────────────────────────────────────────────
+export const isMobileDevice = () => {
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+};
+
+// ─── Lazy messaging instance ──────────────────────────────────────────────────
 let messagingInstance = null;
 const getMessagingInstance = async () => {
   if (messagingInstance) return messagingInstance;
@@ -34,56 +41,41 @@ const getMessagingInstance = async () => {
   }
 };
 
-// ─── Request notification permission + get FCM token ─────────────────────────
-// Works on both desktop Chrome and Android Chrome (mobile Safari not supported by FCM)
+// ─── Request permission + get FCM token ──────────────────────────────────────
 export const requestFcmToken = async () => {
   try {
-    // 1. Check if Service Workers are supported (required for FCM)
     if (!("serviceWorker" in navigator)) {
       console.warn("⚠️ Service Workers not supported");
       return null;
     }
 
-    // 2. Ask permission — shows native browser prompt on mobile
     const permission = await Notification.requestPermission();
-    console.log("🔔 Notification permission:", permission);
-
     if (permission !== "granted") {
-      console.warn("❌ Notification permission denied by user");
+      console.warn("❌ Notification permission denied");
       return null;
     }
 
-    // 3. Register the service worker explicitly so FCM can use it
     let registration;
     try {
       registration = await navigator.serviceWorker.register(
         "/firebase-messaging-sw.js",
         { scope: "/" }
       );
-      // Wait until the SW is fully active (important on mobile)
       await navigator.serviceWorker.ready;
-      console.log("✅ Service Worker active:", registration.scope);
     } catch (swErr) {
-      console.error("❌ Service Worker registration failed:", swErr);
+      console.error("❌ SW registration failed:", swErr);
       return null;
     }
 
-    // 4. Get FCM messaging instance
     const msg = await getMessagingInstance();
     if (!msg) return null;
 
-    // 5. Get the FCM token
     const token = await getToken(msg, {
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: registration,
     });
 
-    if (token) {
-      console.log("✅ FCM Token obtained:", token.substring(0, 30) + "...");
-    } else {
-      console.warn("⚠️ No FCM token received (check VAPID key & Firebase config)");
-    }
-
+    console.log("✅ FCM Token:", token ? token.substring(0, 30) + "..." : "null");
     return token || null;
   } catch (err) {
     console.error("❌ requestFcmToken error:", err);
@@ -91,14 +83,64 @@ export const requestFcmToken = async () => {
   }
 };
 
-// ─── Listen for foreground messages (app is open & in focus) ─────────────────
-// On mobile: shows toast inside app (service worker handles background)
+// ─── Foreground message listener ──────────────────────────────────────────────
+// KEY LOGIC:
+//   • Mobile  → show REAL OS notification via Service Worker (goes to notification bar)
+//               callback is NOT called so app doesn't also show toast
+//   • Desktop → call callback so ChatPage shows the in-app WhatsApp-style toast only
+//               no OS notification on desktop (no need)
 export const listenForegroundMessages = async (callback) => {
   const msg = await getMessagingInstance();
   if (!msg) return;
 
-  onMessage(msg, (payload) => {
-    console.log("📩 Foreground message:", payload);
-    callback(payload);
+  onMessage(msg, async (payload) => {
+    console.log("📩 Foreground FCM message:", payload);
+
+    const mobile = isMobileDevice();
+
+    if (mobile) {
+      // ── MOBILE: show real OS notification bar notification ──────────────
+      // Firebase suppresses it in foreground, so we manually trigger via SW
+      if ("serviceWorker" in navigator && Notification.permission === "granted") {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+
+          const title = payload.notification?.title || "New Message";
+          const body  = payload.notification?.body  || "You have a new message";
+          const url   = payload.data?.url            || "/chat";
+
+          // showNotification via SW → goes to real Android notification bar
+          await registration.showNotification(title, {
+            body,
+            icon: "/icons/icon-192x192.png",
+            badge: "/icons/badge-72x72.png",
+            tag: url,           // collapses same-chat notifications
+            renotify: true,     // vibrate again even if same tag
+            silent: false,
+            vibrate: [200, 100, 200],
+            data: {
+              url,
+              senderId: payload.data?.senderId || "",
+            },
+            actions: [
+              { action: "reply_open", title: "💬 Open Chat" },
+              { action: "dismiss",    title: "✕ Dismiss"   },
+            ],
+          });
+
+          console.log("✅ OS notification shown on mobile");
+        } catch (err) {
+          console.error("❌ SW showNotification failed:", err);
+          // Fallback to in-app toast if SW fails
+          callback(payload);
+        }
+      }
+      // DO NOT call callback on mobile — OS bar notification is enough
+      // (calling it would show both bar notification + toast = double notification)
+
+    } else {
+      // ── DESKTOP: show in-app toast only (no OS notification needed on PC) ─
+      callback(payload);
+    }
   });
 };
