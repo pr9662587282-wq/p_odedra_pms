@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import axios from 'axios';
 import { useTheme } from '../../context/ThemeContext';
 import { toast } from 'sonner'; // Add this import for toast notifications
-import { Send, User as UserIcon, ChevronLeft, Image as ImageIcon, X } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import User_Sidebar from './UserSidebar';
