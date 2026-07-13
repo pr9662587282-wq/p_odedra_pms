@@ -32,6 +32,10 @@ const Chat = () => {
     setDebugInfo((prev) => [`[${time}] ${msg}`, ...prev].slice(0, 15));
   };
   const [onlineUsers, setOnlineUsers] = useState([]);
+  // Track notification permission — 'granted' | 'denied' | 'default'
+  const [notifPermission, setNotifPermission] = useState(
+    typeof Notification !== 'undefined' ? Notification.permission : 'default'
+  );
   const token = localStorage.getItem('token');
   const cleanId = (idInput) => {
     if (!idInput || idInput === 'null' || idInput === 'undefined') return '';
@@ -93,36 +97,42 @@ const Chat = () => {
   }, []);
 
   // ---------------- ADD THIS BLOCK HERE ----------------
+  // ── Register FCM token only when permission already granted ──────────────────
+  // Never auto-request permission — user must click "Enable Notifications" button
+  const registerFcmToken = async () => {
+    const { token: fcmToken, error } = await requestFcmToken();
+    if (error) {
+      addDebug('❌ ' + error);
+      return;
+    }
+    if (fcmToken) {
+      addDebug('✅ Token: ' + fcmToken.substring(0, 18) + '...');
+      setNotifPermission('granted');
+      axios
+        .post(
+          `${import.meta.env.VITE_API_URL}/fcm/save-token`,
+          { token: fcmToken },
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        .then((res) => addDebug('✅ Saved. Tokens: ' + res.data?.tokenCount))
+        .catch((err) => addDebug('❌ Save failed: ' + (err.response?.data?.message || err.message)));
+    }
+  };
+
   useEffect(() => {
     if (!myId || myId === 'null' || !token) return;
 
-    // Register FCM token and save to backend — with full on-screen logging
-    requestFcmToken().then(({ token: fcmToken, error }) => {
-      if (error) {
-        addDebug('❌ FCM error: ' + error);
-        return;
-      }
-      if (fcmToken) {
-        addDebug('✅ Token got: ' + fcmToken.substring(0, 18) + '...');
-        axios
-          .post(
-            `${import.meta.env.VITE_API_URL}/fcm/save-token`,
-            { token: fcmToken },
-            { headers: { Authorization: `Bearer ${token}` } }
-          )
-          .then((res) => addDebug('✅ Saved to DB. Total tokens: ' + res.data?.tokenCount))
-          .catch((err) => addDebug('❌ Save failed: ' + (err.response?.data?.message || err.message)));
-      }
-    });
+    // If already granted — silently register token (no popup)
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      registerFcmToken();
+    }
 
-    // Foreground handler — desktop: in-app toast | mobile: OS notification bar (handled in firebase.js)
+    // Foreground handler — desktop: in-app toast | mobile: OS notification bar
     listenForegroundMessages((payload) => {
       const title    = payload.notification?.title || 'New Message';
       const body     = payload.notification?.body  || 'You have a new message';
       const chatUrl  = payload.data?.url            || '/chat';
       const senderId = payload.data?.senderId       || '';
-
-      addDebug('📩 Foreground msg: ' + title);
 
       const alreadyInChat =
         selectedUserRef.current &&
@@ -153,6 +163,16 @@ const Chat = () => {
       });
     });
   }, [myId, token]);
+
+  // ── Called when user taps "Enable Notifications" button ───────────────────
+  const handleEnableNotifications = async () => {
+    addDebug('🔔 Requesting permission...');
+    await registerFcmToken();
+    // Update state so button disappears after allow
+    if (typeof Notification !== 'undefined') {
+      setNotifPermission(Notification.permission);
+    }
+  };
 
   // Test push button handler — call this from mobile browser to verify end-to-end
   const sendTestPush = async () => {
@@ -503,22 +523,48 @@ const Chat = () => {
             className={`w-full md:w-80 border-r border-slate-200 dark:border-slate-800/60 flex flex-col bg-white dark:bg-[#0B0F19] ${selectedUser ? 'hidden md:flex' : 'flex'}`}
           >
             <div className="p-4 border-b border-slate-200 dark:border-slate-800/60">
-              <h2 className="text-lg font-black tracking-tight uppercase text-indigo-500 dark:text-indigo-400">
-                Messages
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-                Group:{' '}
-                {!currentUser?.groupId || currentUser?.groupId === 'null'
-                  ? 'Public / Ungrouped'
-                  : currentUser.groupId}
-              </p>
-              {/* Debug: test push button — remove after confirming push works */}
-              <button
-                onClick={sendTestPush}
-                className="mt-2 text-[10px] px-2 py-1 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest hover:bg-indigo-200 dark:hover:bg-indigo-800/40 transition-colors"
-              >
-                🧪 Test Push
-              </button>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-black tracking-tight uppercase text-indigo-500 dark:text-indigo-400">
+                    Messages
+                  </h2>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                    Group:{' '}
+                    {!currentUser?.groupId || currentUser?.groupId === 'null'
+                      ? 'Public / Ungrouped'
+                      : currentUser.groupId}
+                  </p>
+                </div>
+
+                <div className="flex flex-col items-end gap-1">
+                  {/* Show enable button only when permission not granted */}
+                  {notifPermission !== 'granted' && notifPermission !== 'denied' && (
+                    <button
+                      onClick={handleEnableNotifications}
+                      className="flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-xl bg-indigo-500 text-white font-bold shadow hover:bg-indigo-600 active:scale-95 transition-all"
+                    >
+                      🔔 Enable Notifications
+                    </button>
+                  )}
+                  {notifPermission === 'denied' && (
+                    <span className="text-[10px] text-red-400 font-medium">
+                      🔕 Blocked in browser
+                    </span>
+                  )}
+                  {notifPermission === 'granted' && (
+                    <span className="text-[10px] text-emerald-500 font-bold">
+                      🔔 Notifications On
+                    </span>
+                  )}
+                  {/* Debug test button */}
+                  <button
+                    onClick={sendTestPush}
+                    className="text-[9px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    🧪 test
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* ── On-screen Debug Panel (no DevTools needed) ── */}
