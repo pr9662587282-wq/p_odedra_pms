@@ -44,17 +44,30 @@ const getMessagingInstance = async () => {
 // ─── Request permission + get FCM token ──────────────────────────────────────
 export const requestFcmToken = async () => {
   try {
+    // FCM only works on HTTPS (or localhost)
+    if (location.protocol !== "https:" && location.hostname !== "localhost") {
+      console.warn("⚠️ FCM requires HTTPS — notifications won't work on HTTP");
+      return { token: null, error: "Requires HTTPS" };
+    }
+
     if (!("serviceWorker" in navigator)) {
-      console.warn("⚠️ Service Workers not supported");
-      return null;
+      return { token: null, error: "Service Workers not supported" };
     }
 
-    const permission = await Notification.requestPermission();
+    if (!("Notification" in window)) {
+      return { token: null, error: "Notifications API not available" };
+    }
+
+    // Request permission
+    let permission = Notification.permission;
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+    }
     if (permission !== "granted") {
-      console.warn("❌ Notification permission denied");
-      return null;
+      return { token: null, error: `Permission: ${permission}` };
     }
 
+    // Register SW
     let registration;
     try {
       registration = await navigator.serviceWorker.register(
@@ -63,23 +76,26 @@ export const requestFcmToken = async () => {
       );
       await navigator.serviceWorker.ready;
     } catch (swErr) {
-      console.error("❌ SW registration failed:", swErr);
-      return null;
+      return { token: null, error: "SW register failed: " + swErr.message };
     }
 
+    // Get messaging instance
     const msg = await getMessagingInstance();
-    if (!msg) return null;
+    if (!msg) return { token: null, error: "FCM not supported in this browser" };
 
+    // Get token
     const token = await getToken(msg, {
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: registration,
     });
 
-    console.log("✅ FCM Token:", token ? token.substring(0, 30) + "..." : "null");
-    return token || null;
+    if (!token) {
+      return { token: null, error: "getToken returned empty (check VAPID key)" };
+    }
+
+    return { token, error: null };
   } catch (err) {
-    console.error("❌ requestFcmToken error:", err);
-    return null;
+    return { token: null, error: err.message };
   }
 };
 

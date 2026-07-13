@@ -96,40 +96,33 @@ const Chat = () => {
   useEffect(() => {
     if (!myId || myId === 'null' || !token) return;
 
-    // Register FCM token and save to backend — with full logging
-    requestFcmToken().then((fcmToken) => {
+    // Register FCM token and save to backend — with full on-screen logging
+    requestFcmToken().then(({ token: fcmToken, error }) => {
+      if (error) {
+        addDebug('❌ FCM error: ' + error);
+        return;
+      }
       if (fcmToken) {
-        addDebug('✅ FCM token got: ' + fcmToken.substring(0, 20) + '...');
+        addDebug('✅ Token got: ' + fcmToken.substring(0, 18) + '...');
         axios
           .post(
             `${import.meta.env.VITE_API_URL}/fcm/save-token`,
             { token: fcmToken },
             { headers: { Authorization: `Bearer ${token}` } }
           )
-          .then((res) => {
-            addDebug('✅ Token saved to DB. Total: ' + res.data?.tokenCount);
-            console.log('✅ FCM token saved. Total tokens:', res.data?.tokenCount);
-          })
-          .catch((err) => {
-            addDebug('❌ Save failed: ' + (err.response?.data?.message || err.message));
-            console.error('❌ FCM save failed:', err.response?.data || err.message);
-          });
-      } else {
-        addDebug('❌ FCM token NULL — check permission/HTTPS');
-        console.warn('⚠️ FCM token is null — notification permission denied or SW failed');
+          .then((res) => addDebug('✅ Saved to DB. Total tokens: ' + res.data?.tokenCount))
+          .catch((err) => addDebug('❌ Save failed: ' + (err.response?.data?.message || err.message)));
       }
-    }).catch((err) => {
-      addDebug('❌ requestFcmToken threw: ' + err.message);
     });
 
-    // Foreground message handler
+    // Foreground handler — desktop: in-app toast | mobile: OS notification bar (handled in firebase.js)
     listenForegroundMessages((payload) => {
       const title    = payload.notification?.title || 'New Message';
       const body     = payload.notification?.body  || 'You have a new message';
       const chatUrl  = payload.data?.url            || '/chat';
       const senderId = payload.data?.senderId       || '';
 
-      addDebug('📩 Foreground msg from: ' + (payload.data?.senderName || senderId));
+      addDebug('📩 Foreground msg: ' + title);
 
       const alreadyInChat =
         selectedUserRef.current &&
@@ -146,21 +139,14 @@ const Chat = () => {
           padding: '12px 16px',
           fontWeight: '600',
           boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-          cursor: 'pointer',
         },
         action: {
           label: '💬 Open',
           onClick: () => {
             if (senderId) {
               const found = users.find((u) => cleanId(u._id) === cleanId(senderId));
-              if (found) {
-                openChat(found);
-              } else {
-                window.location.href = chatUrl;
-              }
-            } else {
-              window.location.href = chatUrl;
-            }
+              if (found) { openChat(found); } else { window.location.href = chatUrl; }
+            } else { window.location.href = chatUrl; }
           },
         },
         cancel: { label: '✕', onClick: () => {} },

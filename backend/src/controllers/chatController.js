@@ -489,75 +489,74 @@ const sendMessage = async (req, res) => {
 
     // ---------------- FCM PUSH NOTIFICATION BLOCK ----------------
     try {
-      const receiverUser = await User.findById(receiverId).select("fcmTokens");
-      console.log("🔥 Receiver tokens:", receiverUser?.fcmTokens);
+      if (!messaging) {
+        console.warn("⚠️ FCM messaging not initialized — skipping push notification");
+      } else {
+        const receiverUser = await User.findById(receiverId).select("fcmTokens");
+        console.log("🔥 FCM | Receiver:", receiverId, "| Tokens:", receiverUser?.fcmTokens?.length || 0);
 
-      if (receiverUser?.fcmTokens?.length) {
-        const senderUser =
-          await User.findById(actualSenderId).select("fullname email");
-        const senderDisplayName = senderUser?.fullname || senderUser?.email || "New message";
-        const msgBody = message?.trim() ? message : "📷 Sent an image";
-        const payload = {
-          notification: {
-            title: senderDisplayName,
-            body: msgBody,
-          },
-          data: {
-            senderId: actualSenderId.toString(),
-            senderName: senderDisplayName,
-            messageText: msgBody,
-            click_action: "OPEN_CHAT",
-            // Full path with userId so SW can open the right chat directly
-            url: `/chat?userId=${actualSenderId}`,
-          },
-          tokens: receiverUser.fcmTokens,
-          // Android: high priority so the notification wakes the screen
-          android: {
-            priority: "high",
-            notification: {
-              channelId: "chat_messages",
-              priority: "max",
-              defaultSound: true,
-              defaultVibrateTimings: true,
-              clickAction: "OPEN_CHAT",
-            },
-          },
-          // Web push: use Notification API urgency hint
-          webpush: {
-            headers: {
-              Urgency: "high",
-            },
+        if (receiverUser?.fcmTokens?.length) {
+          const senderUser = await User.findById(actualSenderId).select("fullname email");
+          const senderDisplayName = senderUser?.fullname || senderUser?.email || "New message";
+          const msgBody = message?.trim() ? message : "📷 Sent an image";
+
+          const fcmPayload = {
             notification: {
               title: senderDisplayName,
               body: msgBody,
-              icon: "/icons/icon-192x192.png",
-              badge: "/icons/badge-72x72.png",
-              tag: `/chat?userId=${actualSenderId}`,
-              renotify: true,
-              requireInteraction: false,
-              vibrate: [200, 100, 200],
             },
-            fcmOptions: {
-              link: `/chat?userId=${actualSenderId}`,
+            data: {
+              senderId: actualSenderId.toString(),
+              senderName: senderDisplayName,
+              messageText: msgBody,
+              url: `/chat?userId=${actualSenderId}`,
             },
-          },
-        };
+            tokens: receiverUser.fcmTokens,
+            android: {
+              priority: "high",
+              notification: {
+                channelId: "chat_messages",
+                priority: "max",
+                defaultSound: true,
+                defaultVibrateTimings: true,
+              },
+            },
+            webpush: {
+              headers: { Urgency: "high" },
+              notification: {
+                title: senderDisplayName,
+                body: msgBody,
+                icon: "/icons/icon-192x192.png",
+                badge: "/icons/badge-72x72.png",
+                tag: `/chat?userId=${actualSenderId}`,
+                renotify: true,
+              },
+              fcmOptions: {
+                link: `/chat?userId=${actualSenderId}`,
+              },
+            },
+          };
 
-        const response = await messaging.sendEachForMulticast(payload);
-        console.log("🔥 FCM response:", JSON.stringify(response)); // ✅ ab try ke andar hai
+          const response = await messaging.sendEachForMulticast(fcmPayload);
+          console.log(`🔥 FCM sent | success:${response.successCount} fail:${response.failureCount}`);
 
-        const invalidTokens = [];
-        response.responses.forEach((r, idx) => {
-          if (!r.success) invalidTokens.push(receiverUser.fcmTokens[idx]);
-        });
-        if (invalidTokens.length) {
-          await User.findByIdAndUpdate(receiverId, {
-            $pull: { fcmTokens: { $in: invalidTokens } },
+          // Remove stale/invalid tokens
+          const invalidTokens = [];
+          response.responses.forEach((r, idx) => {
+            if (!r.success) {
+              console.error(`❌ FCM token[${idx}] failed: ${r.error?.message}`);
+              invalidTokens.push(receiverUser.fcmTokens[idx]);
+            }
           });
+          if (invalidTokens.length) {
+            await User.findByIdAndUpdate(receiverId, {
+              $pull: { fcmTokens: { $in: invalidTokens } },
+            });
+          }
         }
       }
     } catch (notifErr) {
-      console.error("FCM push error:", notifErr);
+      console.error("❌ FCM push error:", notifErr.message);
     }
     // ---------------------------------------------------------------------
 
