@@ -83,9 +83,18 @@ app.use('/', fcmRoutes);
 const linkedinRoutes = require('./routes/linkedinRoutes');
 app.use('/auth', linkedinRoutes);
 
-// Health check
+// Health check — also shows FCM init status so you can verify Render env var
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
+  const { messaging } = require('./config/firebaseAdmin');
+  res.json({
+    status: 'OK',
+    message: 'Server is running',
+    fcm: messaging ? '✅ initialized' : '❌ NOT initialized — set FIREBASE_SERVICE_ACCOUNT_JSON on Render',
+    env: {
+      hasFirebaseEnv: !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
+      nodeEnv: process.env.NODE_ENV,
+    },
+  });
 });
 
 module.exports = app;
