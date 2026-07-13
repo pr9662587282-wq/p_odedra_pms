@@ -55,11 +55,9 @@ const Chat = () => {
 
   // Desktop: a plain click selects the message (shows action bar).
   const handleMsgClick = (msg) => {
-    if (isTouchDevice) return; // touch devices use long-press instead
     if (msg.deleted) return;
     setSelectedMsg((prev) => (prev && prev._id === msg._id ? null : msg));
   };
-
   // Mobile: press-and-hold selects the message.
   const handleTouchStart = (msg) => {
     if (msg.deleted) return;
@@ -785,9 +783,7 @@ const Chat = () => {
                         >
                           <div
                             onClick={() => handleMsgClick(msg)} // ADD
-                            onTouchStart={() => handleTouchStart(msg)} // ADD
-                            onTouchEnd={handleTouchEnd} // ADD
-                            onTouchMove={handleTouchMove} // ADD
+
                             className={`relative max-w-[85%] md:max-w-[75%] lg:max-w-[65%] px-4 py-2.5 rounded-2xl text-[13.5px] font-medium shadow-sm transition-all select-none ${
                               msg.deleted ? 'cursor-default' : 'cursor-pointer'
                             } ${isSelected ? 'ring-2 ring-indigo-400 dark:ring-indigo-500' : ''} ${
