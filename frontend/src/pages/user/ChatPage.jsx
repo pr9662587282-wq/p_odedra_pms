@@ -92,17 +92,20 @@ const Chat = () => {
   useEffect(() => {
     if (!myId || myId === 'null' || !token) return;
 
-    // Register FCM token and save to backend
+    // Register FCM token and save to backend — with full logging
     requestFcmToken().then((fcmToken) => {
       if (fcmToken) {
+        console.log('📲 Saving FCM token to backend...');
         axios
           .post(
             `${import.meta.env.VITE_API_URL}/fcm/save-token`,
             { token: fcmToken },
             { headers: { Authorization: `Bearer ${token}` } }
           )
-          .then(() => console.log('✅ FCM token saved'))
-          .catch((err) => console.log('❌ Save failed:', err.response?.data));
+          .then((res) => console.log('✅ FCM token saved. Total tokens:', res.data?.tokenCount))
+          .catch((err) => console.error('❌ FCM save failed:', err.response?.data || err.message));
+      } else {
+        console.warn('⚠️ FCM token is null — notification permission denied or SW failed');
       }
     });
 
@@ -156,6 +159,28 @@ const Chat = () => {
       });
     });
   }, [myId, token]);
+
+  // Test push button handler — call this from mobile browser to verify end-to-end
+  const sendTestPush = async () => {
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/fcm/test-push`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log('🧪 Test push result:', res.data);
+      toast('Test sent!', {
+        description: `Success: ${res.data.successCount}, Failed: ${res.data.failureCount}`,
+        duration: 5000,
+      });
+    } catch (err) {
+      console.error('❌ Test push failed:', err.response?.data || err.message);
+      toast('Test push failed', {
+        description: err.response?.data?.message || err.message,
+        duration: 5000,
+      });
+    }
+  };
   // -------------------
 
   useEffect(() => {
@@ -342,7 +367,7 @@ const Chat = () => {
   const getCategorizedUsers = () => {
     const filtered = users.filter((u) => u && !isIdMe(u._id));
 
-    const categories = {};
+    const categories = {};  
 
     if (currentGroupId === 'all') {
       // Admin View: Group users by their actual groupId field
@@ -489,6 +514,13 @@ const Chat = () => {
                   ? 'Public / Ungrouped'
                   : currentUser.groupId}
               </p>
+              {/* Debug: test push button — remove after confirming push works */}
+              <button
+                onClick={sendTestPush}
+                className="mt-2 text-[10px] px-2 py-1 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest hover:bg-indigo-200 dark:hover:bg-indigo-800/40 transition-colors"
+              >
+                🧪 Test Push
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto no-scrollbar">
               <div className="p-2 space-y-1">
