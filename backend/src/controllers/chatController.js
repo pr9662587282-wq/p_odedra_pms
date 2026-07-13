@@ -271,29 +271,25 @@ module.exports = {
 };
 */
 
-const User = require("../models/User");
-const Message = require("../models/Message");
-const Profile = require("../models/Profile");
+const User = require('../models/User');
+const Message = require('../models/Message');
+const Profile = require('../models/Profile');
 const UserFrom = require('../models/UserFormData');
-const cloudinary = require("../config/cloudinary"); // Import Cloudinary config
-const streamifier = require("streamifier"); // For streaming buffers to Cloudinary
-const mongoose = require("mongoose");
-const { messaging } = require("../config/firebaseAdmin"); // <-- ADDED
+const cloudinary = require('../config/cloudinary'); // Import Cloudinary config
+const streamifier = require('streamifier'); // For streaming buffers to Cloudinary
+const mongoose = require('mongoose');
+const { messaging } = require('../config/firebaseAdmin'); // <-- ADDED
 
 const getUsersByGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const userRole = req.user?.role || "user";
+    const userRole = req.user?.role || 'user';
 
-    const effectiveGroupId =
-      groupId === "all" && userRole !== "admin" ? "null" : groupId;
+    const effectiveGroupId = groupId === 'all' && userRole !== 'admin' ? 'null' : groupId;
 
-    const rawId = req.user?._id || req.user?.id || req.headers["user-id"];
+    const rawId = req.user?._id || req.user?.id || req.headers['user-id'];
     const currentUserId =
-      rawId &&
-      rawId !== "null" &&
-      rawId !== "undefined" &&
-      mongoose.Types.ObjectId.isValid(rawId)
+      rawId && rawId !== 'null' && rawId !== 'undefined' && mongoose.Types.ObjectId.isValid(rawId)
         ? new mongoose.Types.ObjectId(rawId)
         : null;
 
@@ -302,34 +298,30 @@ const getUsersByGroup = async (req, res) => {
     let chatPartnerIds = [];
     if (currentUserId) {
       const [distinctSenders, distinctReceivers] = await Promise.all([
-        Message.distinct("senderId", { receiverId: currentUserId }).catch(
-          () => [],
-        ),
-        Message.distinct("receiverId", { senderId: currentUserId }).catch(
-          () => [],
-        ),
+        Message.distinct('senderId', { receiverId: currentUserId }).catch(() => []),
+        Message.distinct('receiverId', { senderId: currentUserId }).catch(() => []),
       ]);
 
-      chatPartnerIds = [
-        ...new Set([...distinctSenders, ...distinctReceivers]),
-      ].filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+      chatPartnerIds = [...new Set([...distinctSenders, ...distinctReceivers])].filter(
+        (id) => id && mongoose.Types.ObjectId.isValid(id)
+      );
     }
 
-    if (effectiveGroupId === "all") {
+    if (effectiveGroupId === 'all') {
       // Return everyone
     } else if (
-      effectiveGroupId === "null" ||
-      effectiveGroupId === "undefined" ||
+      effectiveGroupId === 'null' ||
+      effectiveGroupId === 'undefined' ||
       !effectiveGroupId
     ) {
       orConditions.push({ groupId: null });
       orConditions.push({ groupId: { $exists: false } });
-      orConditions.push({ groupId: "" });
+      orConditions.push({ groupId: '' });
     } else {
       orConditions.push({ groupId: effectiveGroupId });
     }
 
-    orConditions.push({ role: "admin" });
+    orConditions.push({ role: 'admin' });
 
     if (chatPartnerIds.length > 0) {
       orConditions.push({
@@ -340,18 +332,14 @@ const getUsersByGroup = async (req, res) => {
     }
 
     const finalQuery =
-      effectiveGroupId === "all" || orConditions.length === 0
-        ? {}
-        : { $or: orConditions };
+      effectiveGroupId === 'all' || orConditions.length === 0 ? {} : { $or: orConditions };
 
-    const authUsers = await User.find(finalQuery).select("-password").lean();
+    const authUsers = await User.find(finalQuery).select('-password').lean();
 
     const userIds = authUsers.map((u) => u._id);
     const emails = authUsers.map((u) => u.email);
 
-    const profiles = Profile
-      ? await Profile.find({ userId: { $in: userIds } }).lean()
-      : [];
+    const profiles = Profile ? await Profile.find({ userId: { $in: userIds } }).lean() : [];
     const userFroms = await UserFrom.find({ email: { $in: emails } }).lean();
 
     const lastMessages = await Message.aggregate([
@@ -367,36 +355,24 @@ const getUsersByGroup = async (req, res) => {
       {
         $group: {
           _id: {
-            $cond: [
-              { $eq: ["$senderId", currentUserId] },
-              "$receiverId",
-              "$senderId",
-            ],
+            $cond: [{ $eq: ['$senderId', currentUserId] }, '$receiverId', '$senderId'],
           },
-          msg: { $first: "$$ROOT" },
+          msg: { $first: '$$ROOT' },
         },
       },
     ]);
 
     const mergedUsers = authUsers.map((u) => {
-      const profile = profiles.find(
-        (p) => p.userId && p.userId.toString() === u._id.toString(),
-      );
+      const profile = profiles.find((p) => p.userId && p.userId.toString() === u._id.toString());
       const fromData = userFroms.find((f) => f.email === u.email);
 
-      const lastMsgData = lastMessages.find(
-        (m) => m._id.toString() === u._id.toString(),
-      );
+      const lastMsgData = lastMessages.find((m) => m._id.toString() === u._id.toString());
       const lastMsg = lastMsgData ? lastMsgData.msg : null;
 
       return {
         ...u,
         fullname:
-          profile?.fullName ||
-          profile?.fullname ||
-          fromData?.fullname ||
-          u.email ||
-          "Team Member",
+          profile?.fullName || profile?.fullname || fromData?.fullname || u.email || 'Team Member',
         profileImage: profile?.profileImage || null,
         lastMessage: lastMsg
           ? {
@@ -409,18 +385,14 @@ const getUsersByGroup = async (req, res) => {
     });
 
     mergedUsers.sort((a, b) => {
-      const dateA = a.lastMessage
-        ? new Date(a.lastMessage.createdAt)
-        : new Date(0);
-      const dateB = b.lastMessage
-        ? new Date(b.lastMessage.createdAt)
-        : new Date(0);
+      const dateA = a.lastMessage ? new Date(a.lastMessage.createdAt) : new Date(0);
+      const dateB = b.lastMessage ? new Date(b.lastMessage.createdAt) : new Date(0);
       return dateB - dateA;
     });
 
     res.json(mergedUsers);
   } catch (error) {
-    console.error("Error in getUsersByGroup:", error);
+    console.error('Error in getUsersByGroup:', error);
     res.status(500).json({
       message: error.message,
     });
@@ -437,13 +409,11 @@ const sendMessage = async (req, res) => {
       !mongoose.Types.ObjectId.isValid(actualSenderId) ||
       !mongoose.Types.ObjectId.isValid(receiverId)
     ) {
-      return res
-        .status(400)
-        .json({ message: "Invalid sender or receiver ID format" });
+      return res.status(400).json({ message: 'Invalid sender or receiver ID format' });
     }
 
     if (!message?.trim() && !req.file) {
-      return res.status(400).json({ message: "Message or image required" });
+      return res.status(400).json({ message: 'Message or image required' });
     }
 
     let imageUrl = null;
@@ -453,52 +423,55 @@ const sendMessage = async (req, res) => {
         const result = await new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream(
             {
-              folder: "chat-images",
+              folder: 'chat-images',
               public_id: `chat_${actualSenderId}_${Date.now()}`,
-              resource_type: "auto",
+              resource_type: 'auto',
             },
             (error, result) => {
               if (error) reject(error);
               else resolve(result);
-            },
+            }
           );
           streamifier.createReadStream(req.file.buffer).pipe(stream);
         });
         imageUrl = result.secure_url;
       } catch (uploadError) {
-        console.error("Cloudinary upload error:", uploadError);
-        return res
-          .status(500)
-          .json({ message: "Error uploading image to cloud storage" });
+        console.error('Cloudinary upload error:', uploadError);
+        return res.status(500).json({ message: 'Error uploading image to cloud storage' });
       }
     }
 
     const msg = await Message.create({
       senderId: new mongoose.Types.ObjectId(actualSenderId),
       receiverId: new mongoose.Types.ObjectId(receiverId),
-      message: message || "",
+      message: message || '',
       imageUrl,
     });
 
     // REAL-TIME: Emit to both receiver and sender (to sync multiple tabs)
     // REAL-TIME: Emit to both receiver and sender (to sync multiple tabs)
     if (req.io && msg) {
-      req.io.to(receiverId.toString()).emit("receive_message", msg);
-      req.io.to(actualSenderId.toString()).emit("receive_message", msg);
+      req.io.to(receiverId.toString()).emit('receive_message', msg);
+      req.io.to(actualSenderId.toString()).emit('receive_message', msg);
     }
 
     // ---------------- FCM PUSH NOTIFICATION BLOCK ----------------
     try {
       if (!messaging) {
-        console.warn("⚠️ FCM messaging not initialized — skipping push notification");
+        console.warn('⚠️ FCM messaging not initialized — skipping push notification');
       } else {
-        const receiverUser = await User.findById(receiverId).select("fcmTokens");
-        console.log("🔥 FCM | Receiver:", receiverId, "| Tokens:", receiverUser?.fcmTokens?.length || 0);
+        const receiverUser = await User.findById(receiverId).select('fcmTokens');
+        console.log(
+          '🔥 FCM | Receiver:',
+          receiverId,
+          '| Tokens:',
+          receiverUser?.fcmTokens?.length || 0
+        );
 
         if (receiverUser?.fcmTokens?.length) {
-          const senderUser = await User.findById(actualSenderId).select("fullname email");
-          const senderDisplayName = senderUser?.fullname || senderUser?.email || "New message";
-          const msgBody = message?.trim() ? message : "📷 Sent an image";
+          const senderUser = await User.findById(actualSenderId).select('fullname email');
+          const senderDisplayName = senderUser?.fullname || senderUser?.email || 'New message';
+          const msgBody = message?.trim() ? message : '📷 Sent an image';
 
           const fcmPayload = {
             notification: {
@@ -513,21 +486,21 @@ const sendMessage = async (req, res) => {
             },
             tokens: receiverUser.fcmTokens,
             android: {
-              priority: "high",
+              priority: 'high',
               notification: {
-                channelId: "chat_messages",
-                priority: "max",
+                channelId: 'chat_messages',
+                priority: 'max',
                 defaultSound: true,
                 defaultVibrateTimings: true,
               },
             },
             webpush: {
-              headers: { Urgency: "high" },
+              headers: { Urgency: 'high' },
               notification: {
                 title: senderDisplayName,
                 body: msgBody,
-                icon: "/icons/icon-192x192.png",
-                badge: "/icons/badge-72x72.png",
+                icon: '/icons/icon-192x192.png',
+                badge: '/icons/badge-72x72.png',
                 tag: `/chat?userId=${actualSenderId}`,
                 renotify: true,
               },
@@ -538,7 +511,9 @@ const sendMessage = async (req, res) => {
           };
 
           const response = await messaging.sendEachForMulticast(fcmPayload);
-          console.log(`🔥 FCM sent | success:${response.successCount} fail:${response.failureCount}`);
+          console.log(
+            `🔥 FCM sent | success:${response.successCount} fail:${response.failureCount}`
+          );
 
           // Remove stale/invalid tokens
           const invalidTokens = [];
@@ -556,13 +531,13 @@ const sendMessage = async (req, res) => {
         }
       }
     } catch (notifErr) {
-      console.error("❌ FCM push error:", notifErr.message);
+      console.error('❌ FCM push error:', notifErr.message);
     }
     // ---------------------------------------------------------------------
 
     res.json(msg);
   } catch (error) {
-    console.error("Error in sendMessage:", error);
+    console.error('Error in sendMessage:', error);
     res.status(500).json({
       message: error.message,
     });
@@ -579,7 +554,7 @@ const getMessages = async (req, res) => {
       !mongoose.Types.ObjectId.isValid(rawCurrentId) ||
       !mongoose.Types.ObjectId.isValid(rawReceiverId)
     ) {
-      return res.status(400).json({ message: "Invalid user or receiver ID" });
+      return res.status(400).json({ message: 'Invalid user or receiver ID' });
     }
 
     const currentUserId = new mongoose.Types.ObjectId(rawCurrentId);
@@ -594,13 +569,142 @@ const getMessages = async (req, res) => {
 
     res.json(messages);
   } catch (err) {
-    console.error("getMessages error:", err);
+    console.error('getMessages error:', err);
     res.status(500).json({ message: err.message });
   }
 };
+
+/* ============================================================
+   ADD THESE TWO FUNCTIONS TO YOUR EXISTING chatController.js
+   (keep your existing getUsersByGroup / sendMessage / getMessages)
+   ============================================================ */
+
+// Soft delete — message row stays in DB, text/image are cleared,
+// `deleted: true` is set so the UI can render "This message was deleted"
+const deleteMessage = async (req, res) => {
+  try {
+    const rawCurrentId = req.user?._id || req.user?.id;
+    const { messageId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(messageId)) {
+      return res.status(400).json({ message: 'Invalid message ID' });
+    }
+
+    const msg = await Message.findById(messageId);
+    if (!msg) return res.status(404).json({ message: 'Message not found' });
+
+    // Only the original sender can delete their own message
+    if (msg.senderId.toString() !== String(rawCurrentId)) {
+      return res.status(403).json({ message: 'Not authorized to delete this message' });
+    }
+
+    if (msg.deleted) {
+      return res.json(msg); // already deleted, nothing to do
+    }
+
+    msg.deleted = true;
+    msg.message = '';
+    msg.imageUrl = null;
+    msg.deletedAt = new Date();
+    await msg.save();
+
+    // Notify both sides in real time so the message updates on every open tab/device
+    if (req.io) {
+      req.io
+        .to(msg.receiverId.toString())
+        .emit('message_deleted', { messageId: msg._id.toString() });
+      req.io.to(msg.senderId.toString()).emit('message_deleted', { messageId: msg._id.toString() });
+    }
+
+    res.json(msg);
+  } catch (error) {
+    console.error('Error in deleteMessage:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Edit an existing message's text (like WhatsApp's "Edit" option)
+const editMessage = async (req, res) => {
+  try {
+    const rawCurrentId = req.user?._id || req.user?.id;
+    const { messageId } = req.params;
+    const { message } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(messageId)) {
+      return res.status(400).json({ message: 'Invalid message ID' });
+    }
+    if (!message?.trim()) {
+      return res.status(400).json({ message: 'Message text required' });
+    }
+
+    const msg = await Message.findById(messageId);
+    if (!msg) return res.status(404).json({ message: 'Message not found' });
+
+    if (msg.senderId.toString() !== String(rawCurrentId)) {
+      return res.status(403).json({ message: 'Not authorized to edit this message' });
+    }
+    if (msg.deleted) {
+      return res.status(400).json({ message: 'Cannot edit a deleted message' });
+    }
+
+    msg.message = message.trim();
+    msg.edited = true;
+    msg.editedAt = new Date();
+    await msg.save();
+
+    if (req.io) {
+      req.io.to(msg.receiverId.toString()).emit('message_edited', msg);
+      req.io.to(msg.senderId.toString()).emit('message_edited', msg);
+    }
+
+    res.json(msg);
+  } catch (error) {
+    console.error('Error in editMessage:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/* ============================================================
+   UPDATE your module.exports at the bottom of chatController.js to:
+
+   module.exports = {
+     getUsersByGroup,
+     sendMessage,
+     getMessages,
+     deleteMessage,
+     editMessage,
+   };
+   ============================================================ */
+
+/* ============================================================
+   MESSAGE MODEL — add these fields to your Message schema
+   (models/Message.js)
+   ============================================================
+
+   deleted:   { type: Boolean, default: false },
+   deletedAt: { type: Date, default: null },
+   edited:    { type: Boolean, default: false },
+   editedAt:  { type: Date, default: null },
+
+   ============================================================ */
+
+/* ============================================================
+   ROUTES — add these two lines to your chat routes file
+   (routes/chatRoutes.js), next to your existing /chat/send route
+   ============================================================
+
+   router.put("/chat/edit/:messageId", authMiddleware, editMessage);
+   router.delete("/chat/delete/:messageId", authMiddleware, deleteMessage);
+
+   // don't forget to import them:
+   // const { editMessage, deleteMessage } = require("../controllers/chatController");
+
+   ============================================================ */
 
 module.exports = {
   getUsersByGroup,
   sendMessage,
   getMessages,
+  deleteMessage,
+  editMessage,
 };
