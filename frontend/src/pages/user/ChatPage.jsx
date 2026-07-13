@@ -101,7 +101,7 @@ const Chat = () => {
         { token: fcmToken },
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      .catch(() => {});
+      .catch(() => { });
   };
 
   useEffect(() => {
@@ -114,14 +114,13 @@ const Chat = () => {
 
     // Foreground handler — desktop: in-app toast | mobile: OS notification bar
     listenForegroundMessages((payload) => {
-      const title    = payload.notification?.title || 'New Message';
-      const body     = payload.notification?.body  || 'You have a new message';
-      const chatUrl  = payload.data?.url            || '/chat';
-      const senderId = payload.data?.senderId       || '';
+      const title = payload.notification?.title || 'New Message';
+      const body = payload.notification?.body || 'You have a new message';
+      const chatUrl = payload.data?.url || '/chat';
+      const senderId = payload.data?.senderId || '';
 
       const alreadyInChat =
-        selectedUserRef.current &&
-        cleanId(selectedUserRef.current._id) === cleanId(senderId);
+        selectedUserRef.current && cleanId(selectedUserRef.current._id) === cleanId(senderId);
       if (alreadyInChat) return;
 
       toast(title, {
@@ -140,11 +139,17 @@ const Chat = () => {
           onClick: () => {
             if (senderId) {
               const found = users.find((u) => cleanId(u._id) === cleanId(senderId));
-              if (found) { openChat(found); } else { window.location.href = chatUrl; }
-            } else { window.location.href = chatUrl; }
+              if (found) {
+                openChat(found);
+              } else {
+                window.location.href = chatUrl;
+              }
+            } else {
+              window.location.href = chatUrl;
+            }
           },
         },
-        cancel: { label: '✕', onClick: () => {} },
+        cancel: { label: '✕', onClick: () => { } },
       });
     });
   }, [myId, token]);
@@ -156,7 +161,6 @@ const Chat = () => {
       setNotifPermission(Notification.permission);
     }
   };
-
 
   useEffect(() => {
     if (!currentGroupId || currentGroupId === 'undefined' || !token) return;
@@ -342,7 +346,7 @@ const Chat = () => {
   const getCategorizedUsers = () => {
     const filtered = users.filter((u) => u && !isIdMe(u._id));
 
-    const categories = {};  
+    const categories = {};
 
     if (currentGroupId === 'all') {
       // Admin View: Group users by their actual groupId field
@@ -386,11 +390,10 @@ const Chat = () => {
     <button
       key={u._id}
       onClick={() => openChat(u)}
-      className={`flex items-center gap-3 w-full p-3 rounded-2xl transition-all ${
-        String(selectedUser?._id) === String(u._id)
-          ? 'bg-indigo-50/80 dark:bg-indigo-600/15 ring-1 ring-indigo-100 dark:ring-indigo-500/30'
-          : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'
-      }`}
+      className={`flex items-center gap-3 w-full p-3 rounded-2xl transition-all ${String(selectedUser?._id) === String(u._id)
+        ? 'bg-indigo-50/80 dark:bg-indigo-600/15 ring-1 ring-indigo-100 dark:ring-indigo-500/30'
+        : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'
+        }`}
     >
       <div className="relative shrink-0 group">
         <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-950 dark:to-indigo-900/60 flex items-center justify-center ring-1 ring-indigo-200/50 dark:ring-indigo-500/20">
@@ -398,11 +401,10 @@ const Chat = () => {
         </div>
         {/* The Green Dot Indicator */}
         <span
-          className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white dark:border-[#0B0F19] ${
-            onlineUsers.some((oid) => oid === cleanId(u._id))
-              ? 'bg-emerald-500'
-              : 'bg-slate-300 dark:bg-slate-700'
-          }`}
+          className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white dark:border-[#0B0F19] ${onlineUsers.some((oid) => oid === cleanId(u._id))
+            ? 'bg-emerald-500'
+            : 'bg-slate-300 dark:bg-slate-700'
+            }`}
         ></span>
         {u.lastMessage &&
           !isIdMe(u.lastMessage.senderId) &&
@@ -452,7 +454,7 @@ const Chat = () => {
 
   return (
     <div
-      className={`flex min-h-screen ${theme === 'dark' ? 'bg-[#090D16] text-white' : 'bg-slate-50 text-slate-900'}`}
+      className={`flex min-h-screen w-full overflow-hidden ${theme === 'dark' ? 'bg-[#090D16] text-white' : 'bg-slate-50 text-slate-900'}`}
     >
       <style>
         {`
@@ -473,8 +475,8 @@ const Chat = () => {
         />
       )}
 
-      <main className="flex-1 md:ml-72 flex flex-col h-screen pt-16 md:pt-0">
-        <div className="flex flex-1 overflow-hidden">
+      <main className="flex-1 md:ml-72 flex flex-col h-screen pt-16 md:pt-0 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden w-full">
           {/* User List Sidebar */}
           <div
             className={`w-full md:w-80 border-r border-slate-200 dark:border-slate-800/60 flex flex-col bg-white dark:bg-[#0B0F19] ${selectedUser ? 'hidden md:flex' : 'flex'}`}
@@ -534,9 +536,9 @@ const Chat = () => {
             </div>
           </div>
 
-          {/* Chat Wind ow */}
+          {/* Chat Window */}
           <div
-            className={`flex-1 flex flex-col bg-slate-50/30 dark:bg-[#080B11] ${selectedUser ? 'flex' : 'hidden md:flex'}`}
+            className={`flex-1 min-w-0 flex flex-col bg-slate-50/30 dark:bg-[#080B11] ${selectedUser ? 'flex' : 'hidden md:flex'}`}
           >
             {selectedUser ? (
               <>
@@ -572,11 +574,10 @@ const Chat = () => {
                     </h3>
                     <div className="flex items-center gap-1.5">
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          onlineUsers.some((oid) => oid === cleanId(selectedUser._id))
-                            ? 'bg-emerald-500'
-                            : 'bg-slate-300 dark:bg-slate-600'
-                        }`}
+                        className={`h-1.5 w-1.5 rounded-full ${onlineUsers.some((oid) => oid === cleanId(selectedUser._id))
+                          ? 'bg-emerald-500'
+                          : 'bg-slate-300 dark:bg-slate-600'
+                          }`}
                       />
                       <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                         {onlineUsers.some((oid) => oid === cleanId(selectedUser._id))
@@ -588,7 +589,7 @@ const Chat = () => {
                 </div>
 
                 {/* Messages Area — Using a direct div for more reliable scrolling */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col space-y-4 no-scrollbar bg-slate-50/20 dark:bg-[#090D16]/40">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 flex flex-col space-y-4 no-scrollbar bg-slate-50/20 dark:bg-[#090D16]/40">
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 opacity-60">
                       <p className="text-[10px] font-black uppercase tracking-widest">
@@ -607,11 +608,10 @@ const Chat = () => {
                           className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`relative max-w-[85%] md:max-w-[75%] lg:max-w-[65%] px-4 py-2.5 rounded-2xl text-[13.5px] font-medium shadow-sm transition-all ${
-                              isMe
-                                ? 'bg-indigo-600 dark:bg-gradient-to-r dark:from-indigo-600 dark:to-violet-600 text-white rounded-tr-none shadow-indigo-500/10 dark:shadow-indigo-950/40'
-                                : 'bg-white dark:bg-[#1E293B]/70 text-slate-800 dark:text-slate-100 rounded-tl-none border border-slate-100 dark:border-slate-800/40 shadow-sm'
-                            }`}
+                            className={`relative max-w-[85%] md:max-w-[75%] lg:max-w-[65%] px-4 py-2.5 rounded-2xl text-[13.5px] font-medium shadow-sm transition-all ${isMe
+                              ? 'bg-indigo-600 dark:bg-gradient-to-r dark:from-indigo-600 dark:to-violet-600 text-white rounded-tr-none shadow-indigo-500/10 dark:shadow-indigo-950/40'
+                              : 'bg-white dark:bg-[#1E293B]/70 text-slate-800 dark:text-slate-100 rounded-tl-none border border-slate-100 dark:border-slate-800/40 shadow-sm'
+                              }`}
                           >
                             {msg.imageUrl && (
                               <img
@@ -624,14 +624,13 @@ const Chat = () => {
                               />
                             )}
                             {msg.message && (
-                              <p className="leading-relaxed whitespace-pre-wrap break-words">
+                              <p className="leading-relaxed whitespace-pre-wrap break-words [word-break:break-word] [overflow-wrap:anywhere]">
                                 {msg.message}
                               </p>
                             )}
                             <p
-                              className={`text-[9px] mt-1 text-right font-black uppercase tracking-widest opacity-60 ${
-                                isMe ? 'text-indigo-200/90' : 'text-slate-400 dark:text-slate-500'
-                              }`}
+                              className={`text-[9px] mt-1 text-right font-black uppercase tracking-widest opacity-60 ${isMe ? 'text-indigo-200/90' : 'text-slate-400 dark:text-slate-500'
+                                }`}
                             >
                               {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], {
                                 hour: '2-digit',
