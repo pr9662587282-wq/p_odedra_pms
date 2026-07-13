@@ -588,7 +588,7 @@ const Chat = () => {
 
   return (
     <div
-      className={`flex min-h-screen w-full overflow-hidden ${theme === 'dark' ? 'bg-[#090D16] text-white' : 'bg-slate-50 text-slate-900'}`}
+      className={`flex h-screen w-full overflow-hidden ${theme === 'dark' ? 'bg-[#090D16] text-white' : 'bg-slate-50 text-slate-900'}`}
     >
       <style>
         {`
@@ -678,7 +678,7 @@ const Chat = () => {
               <>
                 {/* Chat Header */}
                 {selectedMsg ? (
-                  <div className="px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 dark:border-slate-800/60 bg-indigo-50 dark:bg-indigo-950/40 flex items-center gap-3 md:gap-4">
+                  <div className="sticky top-0 z-20 px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 dark:border-slate-800/60 bg-indigo-50 dark:bg-indigo-950/40 flex items-center gap-3 md:gap-4">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -690,31 +690,29 @@ const Chat = () => {
                     <p className="flex-1 text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
                       1 selected
                     </p>
-                    {isIdMe(selectedMsg.senderId) && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={startEdit}
-                          title="Edit"
-                          className="h-9 w-9 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/10"
-                        >
-                          <Pencil size={18} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={deleteSelectedMsg}
-                          title="Delete"
-                          className="h-9 w-9 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/10"
-                        >
-                          <Trash2 size={18} />
-                        </Button>
-                      </>
-                    )}
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={startEdit}
+                        title="Edit"
+                        className="h-9 w-9 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/10"
+                      >
+                        <Pencil size={18} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={deleteSelectedMsg}
+                        title="Delete"
+                        className="h-9 w-9 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/10"
+                      >
+                        <Trash2 size={18} />
+                      </Button>
+                    </>
                   </div>
                 ) : (
-                  <div className="px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 dark:border-slate-800/60 bg-white dark:bg-[#0B0F19]/90 dark:backdrop-blur-md flex items-center gap-3 md:gap-4">
+                  <div className="sticky top-0 z-20 px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 dark:border-slate-800/60 bg-white dark:bg-[#0B0F19]/90 dark:backdrop-blur-md flex items-center gap-3 md:gap-4">
                     <Button
                       variant="ghost"
                       size="icon"
