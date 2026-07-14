@@ -1,29 +1,42 @@
 const { initializeApp, getApps, cert } = require("firebase-admin/app");
 const { getMessaging } = require("firebase-admin/messaging");
 
-let messaging;
+let messaging = null;
 
 try {
-  // ── Only initialize once (avoid duplicate app error on hot-reload) ────────
   if (getApps().length === 0) {
 
-    // ── Priority 1: Environment variable (Render / production) ───────────────
-    // Set FIREBASE_SERVICE_ACCOUNT_JSON in Render dashboard as a single-line JSON string
     if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      // Render env vars sometimes escape newlines — fix them
+      const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+        .replace(/\\n/g, "\n");   // unescape \\n → real newline
+
+      let serviceAccount;
+      try {
+        serviceAccount = JSON.parse(raw);
+      } catch (parseErr) {
+        console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:", parseErr.message);
+        console.error("   First 100 chars:", raw.substring(0, 100));
+        throw parseErr;
+      }
+
+      // Fix private key newlines if they got double-escaped
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+      }
+
       initializeApp({ credential: cert(serviceAccount) });
       console.log("✅ Firebase Admin initialized from env variable");
+      console.log("   project_id:", serviceAccount.project_id);
+      console.log("   private_key_id:", serviceAccount.private_key_id);
 
-    // ── Priority 2: Local JSON file (development) ─────────────────────────────
     } else {
       try {
         const serviceAccount = require("./firebase-service-account.json");
         initializeApp({ credential: cert(serviceAccount) });
         console.log("✅ Firebase Admin initialized from service account file");
       } catch (fileErr) {
-        console.error("❌ firebase-service-account.json not found AND FIREBASE_SERVICE_ACCOUNT_JSON env not set");
-        console.error("   Push notifications will NOT work until one of these is configured");
-        // Don't crash the server — just messaging will be null
+        console.error("❌ No firebase credentials found — push notifications disabled");
       }
     }
   }
@@ -35,7 +48,4 @@ try {
   messaging = null;
 }
 
-// Safe wrapper — returns null if FCM not initialized
-const safeMessaging = messaging;
-
-module.exports = { messaging: safeMessaging };
+module.exports = { messaging };
