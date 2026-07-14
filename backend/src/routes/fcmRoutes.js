@@ -10,7 +10,12 @@ router.post('/fcm/save-token', authMiddleware, async (req, res) => {
     const userId = req.user?.id || req.user?._id || req.body.userId;
     const { token } = req.body;
 
-    console.log('📲 [FCM] save-token called | userId:', userId, '| token:', token?.substring(0, 30));
+    console.log(
+      '📲 [FCM] save-token called | userId:',
+      userId,
+      '| token:',
+      token?.substring(0, 30)
+    );
 
     if (!userId || !token) {
       return res.status(400).json({ message: 'Missing userId or token' });
@@ -29,6 +34,34 @@ router.post('/fcm/save-token', authMiddleware, async (req, res) => {
   }
 });
 
+// ── Remove FCM token (called on logout) ───────────────────────────────────────
+router.post('/fcm/remove-token', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const { token: fcmToken } = req.body;
+
+    if (!userId || !fcmToken) {
+      return res.status(400).json({ message: 'Missing userId or token' });
+    }
+
+    await User.findByIdAndUpdate(userId, { $pull: { fcmTokens: fcmToken } });
+
+    const updated = await User.findById(userId).select('fcmTokens email');
+    console.log(
+      '🗑️ [FCM] Token removed for',
+      updated?.email,
+      '| remaining:',
+      updated?.fcmTokens?.length
+    );
+
+    res.json({ success: true, tokenCount: updated?.fcmTokens?.length });
+  } catch (err) {
+    console.error('❌ [FCM] remove-token error:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── Debug: check saved tokens for logged-in user ─────────────────────────────
 // ── Debug: check saved tokens for logged-in user ─────────────────────────────
 router.get('/fcm/debug-tokens', authMiddleware, async (req, res) => {
   try {
