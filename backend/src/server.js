@@ -59,6 +59,30 @@ io.on('connection', (socket) => {
       io.to(senderId).emit('message_sent', data);
     }
   });
+  socket.on('call-user', ({ toUserId, fromUserId, fromName, offer }) => {
+    const cleanTo = String(toUserId).replace(/["']/g, '');
+    io.to(cleanTo).emit('incoming-call', { fromUserId, fromName, offer });
+  });
+
+  socket.on('call-answer', ({ toUserId, answer }) => {
+    const cleanTo = String(toUserId).replace(/["']/g, '');
+    io.to(cleanTo).emit('call-answered', { answer });
+  });
+
+  socket.on('ice-candidate', ({ toUserId, candidate }) => {
+    const cleanTo = String(toUserId).replace(/["']/g, '');
+    io.to(cleanTo).emit('ice-candidate', { candidate });
+  });
+
+  socket.on('call-rejected', ({ toUserId }) => {
+    const cleanTo = String(toUserId).replace(/["']/g, '');
+    io.to(cleanTo).emit('call-rejected');
+  });
+
+  socket.on('call-ended', ({ toUserId }) => {
+    const cleanTo = String(toUserId).replace(/["']/g, '');
+    io.to(cleanTo).emit('call-ended');
+  });
 
   // ---------------- TYPING INDICATOR ----------------
   socket.on('typing', ({ toUserId }) => {
