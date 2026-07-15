@@ -49,7 +49,9 @@ const Chat = () => {
   const [editingMsg, setEditingMsg] = useState(null);
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
-  const lastTypingSentRef = useRef(0); // msg currently being edited in the input box
+  const lastTypingSentRef = useRef(0);
+  const [typingUsers, setTypingUsers] = useState({});
+  const sidebarTypingTimeoutsRef = useRef({}); // msg currently being edited in the input box
   const longPressTimerRef = useRef(null);
   const longPressFiredRef = useRef(false);
   const inputRef = useRef(null);
@@ -530,12 +532,20 @@ const Chat = () => {
     });
 
     // typing on chat live viw scoket io
-    socketRef.current.on('user_typing', ({ fromUserId }) => {
-      const activeUser = selectedUserRef.current;
-      if (activeUser && cleanId(fromUserId) === cleanId(activeUser._id)) {
-        setIsPeerTyping(true);
 
-        // 3 second baad automatically "typing" hata do agar naya event na aaye
+    socketRef.current.on('user_typing', ({ fromUserId }) => {
+      const cleanFrom = cleanId(fromUserId);
+
+      // Sidebar — mark this user as typing, clear after 3s of silence
+      setTypingUsers((prev) => ({ ...prev, [cleanFrom]: true }));
+      clearTimeout(sidebarTypingTimeoutsRef.current[cleanFrom]);
+      sidebarTypingTimeoutsRef.current[cleanFrom] = setTimeout(() => {
+        setTypingUsers((prev) => ({ ...prev, [cleanFrom]: false }));
+      }, 3000);
+      // Header — only for the conversation currently open
+      const activeUser = selectedUserRef.current;
+      if (activeUser && cleanFrom === cleanId(activeUser._id)) {
+        setIsPeerTyping(true);
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => {
           setIsPeerTyping(false);
@@ -817,11 +827,6 @@ const Chat = () => {
               u.fullName ||
               u.name ||
               (u.email ? u.email.split('@')[0] : 'Team Member')}
-
-            {/* only name show no email {(u.fullname && !u.fullname.includes("@") && u.fullname) ||
-                (u.fullName && !u.fullName.includes("@") && u.fu  llName) ||
-                (u.name && !u.name.includes("@") && u.name) ||
-                "Team Member"}*/}
           </p>
           {u.lastMessage && (
             <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
@@ -833,18 +838,38 @@ const Chat = () => {
           )}
         </div>
         <div className="flex items-center gap-1">
-          <p
-            className={`text-xs truncate ${u.lastMessage && !isIdMe(u.lastMessage.senderId) && (!selectedUser || String(selectedUser._id) !== String(u._id)) ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500 font-medium'}`}
-          >
-            {u.lastMessage ? (
-              <>
-                {isIdMe(u.lastMessage.senderId) ? 'You: ' : ''}
-                {u.lastMessage.text}
-              </>
-            ) : (
-              'Tap to chat'
-            )}
-          </p>
+          {typingUsers[cleanId(u._id)] ? (
+            <p className="text-xs truncate font-bold text-emerald-500 dark:text-emerald-400 flex items-center gap-1.5">
+              <span className="flex gap-0.5">
+                <span
+                  className="h-1 w-1 rounded-full bg-emerald-500 animate-bounce"
+                  style={{ animationDelay: '0ms' }}
+                />
+                <span
+                  className="h-1 w-1 rounded-full bg-emerald-500 animate-bounce"
+                  style={{ animationDelay: '150ms' }}
+                />
+                <span
+                  className="h-1 w-1 rounded-full bg-emerald-500 animate-bounce"
+                  style={{ animationDelay: '300ms' }}
+                />
+              </span>
+              typing...
+            </p>
+          ) : (
+            <p
+              className={`text-xs truncate ${u.lastMessage && !isIdMe(u.lastMessage.senderId) && (!selectedUser || String(selectedUser._id) !== String(u._id)) ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500 font-medium'}`}
+            >
+              {u.lastMessage ? (
+                <>
+                  {isIdMe(u.lastMessage.senderId) ? 'You: ' : ''}
+                  {u.lastMessage.text}
+                </>
+              ) : (
+                'Tap to chat'
+              )}
+            </p>
+          )}
         </div>
       </div>
     </button>
