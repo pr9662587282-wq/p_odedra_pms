@@ -122,6 +122,7 @@ const Chat = () => {
         emoji,
         userId: myId,
         action: already ? 'remove' : 'add',
+        toUserId: cleanId(selectedUser._id),
       });
 
       return { ...prev, [msgId]: updatedEmojiMap };
