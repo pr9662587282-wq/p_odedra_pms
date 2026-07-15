@@ -61,9 +61,75 @@ io.on('connection', (socket) => {
       io.to(senderId).emit('message_sent', data);
     }
   });
-  socket.on('call-user', ({ toUserId, fromUserId, fromName, offer }) => {
+  socket.on('call-user', async ({ toUserId, fromUserId, fromName, offer }) => {
     const cleanTo = String(toUserId).replace(/["']/g, '');
+
+    // 1. Keep the live socket relay — instant if the tab is already open
     io.to(cleanTo).emit('incoming-call', { fromUserId, fromName, offer });
+
+    // 2. ALSO send a real FCM push — reaches the callee even if the tab
+    //    is closed/backgrounded, same as your message/reaction pushes
+    try {
+      if (!messaging) {
+        console.warn('⚠️ FCM not initialized — skipping call push');
+        return;
+      }
+
+      const receiverUser = await User.findById(cleanTo).select('fcmTokens');
+      console.log(
+        `🔥 FCM(call) | Receiver: ${cleanTo} | Tokens: ${receiverUser?.fcmTokens?.length || 0}`
+      );
+
+      if (receiverUser?.fcmTokens?.length) {
+        const chatUrl = `/chat?userId=${fromUserId}`;
+
+        // NOTE: do NOT put the SDP offer here — FCM data payloads cap at ~4KB
+        // and offers can exceed that. This push is only a wake-up signal;
+        // the real offer arrives via the socket event once the tab is open.
+        const fcmPayload = {
+          data: {
+            type: 'incoming_call',
+            fromUserId: String(fromUserId),
+            fromName: fromName || 'Someone',
+            url: chatUrl,
+          },
+          tokens: receiverUser.fcmTokens,
+          android: {
+            priority: 'high',
+            notification: {
+              channelId: 'chat_calls',
+              priority: 'max',
+              defaultSound: true,
+              defaultVibrateTimings: true,
+            },
+          },
+          webpush: {
+            headers: { Urgency: 'high' },
+            fcmOptions: { link: chatUrl },
+          },
+        };
+
+        const response = await messaging.sendEachForMulticast(fcmPayload);
+        console.log(
+          `🔥 FCM(call) sent | success:${response.successCount} fail:${response.failureCount}`
+        );
+
+        const invalidTokens = [];
+        response.responses.forEach((r, idx) => {
+          if (!r.success) {
+            console.error(`❌ Call token[${idx}] failed: ${r.error?.message}`);
+            invalidTokens.push(receiverUser.fcmTokens[idx]);
+          }
+        });
+        if (invalidTokens.length) {
+          await User.findByIdAndUpdate(cleanTo, {
+            $pull: { fcmTokens: { $in: invalidTokens } },
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error('❌ FCM call push error:', notifErr.message);
+    }
   });
 
   socket.on('call-answer', ({ toUserId, answer }) => {

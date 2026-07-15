@@ -657,7 +657,40 @@ const Chat = () => {
         socketRef.current.disconnect();
       }
     };
-  }, [myId]); // Only reconnect if the current user ID changes
+  }, [myId]);
+
+  // Only reconnect if the current user ID changes
+  // ── Handle taps on a background call notification while app is/becomes open ──
+  useEffect(() => {
+    const handleSwMessage = (event) => {
+      if (event.data?.type === 'CALL_NOTIFICATION_CLICK') {
+        const { action, fromUserId } = event.data;
+        if (action === 'decline') {
+          socketRef.current?.emit('call-rejected', { toUserId: cleanId(fromUserId) });
+          return;
+        }
+        if (action === 'accept' && incomingCall) {
+          acceptCall();
+        }
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleSwMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', handleSwMessage);
+  }, [incomingCall]);
+
+  // ── Handle the case where the SW had to open a brand-new tab ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const callAction = params.get('callAction');
+    const fromUserId = params.get('userId');
+    if (callAction && fromUserId) {
+      window.history.replaceState({}, '', '/chat');
+      if (callAction === 'decline') {
+        socketRef.current?.emit('call-rejected', { toUserId: cleanId(fromUserId) });
+      }
+    }
+  }, [myId]);
+
   const fetchMessages = async (receiverId) => {
     const myRequestId = ++requestIdRef.current;
     try {
