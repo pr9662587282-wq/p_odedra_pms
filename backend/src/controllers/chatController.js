@@ -35,7 +35,11 @@ const getUsersByGroup = async (req, res) => {
 
     if (effectiveGroupId === 'all') {
       // Return everyone — no filter
-    } else if (!effectiveGroupId || effectiveGroupId === 'null' || effectiveGroupId === 'undefined') {
+    } else if (
+      !effectiveGroupId ||
+      effectiveGroupId === 'null' ||
+      effectiveGroupId === 'undefined'
+    ) {
       orConditions.push({ groupId: null }, { groupId: { $exists: false } }, { groupId: '' });
     } else {
       orConditions.push({ groupId: effectiveGroupId });
@@ -43,7 +47,9 @@ const getUsersByGroup = async (req, res) => {
 
     orConditions.push({ role: 'admin' });
     if (chatPartnerIds.length > 0) {
-      orConditions.push({ _id: { $in: chatPartnerIds.map((id) => new mongoose.Types.ObjectId(id)) } });
+      orConditions.push({
+        _id: { $in: chatPartnerIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      });
     }
 
     const finalQuery =
@@ -82,7 +88,8 @@ const getUsersByGroup = async (req, res) => {
 
       return {
         ...u,
-        fullname: profile?.fullName || profile?.fullname || fromData?.fullname || u.email || 'Team Member',
+        fullname:
+          profile?.fullName || profile?.fullname || fromData?.fullname || u.email || 'Team Member',
         profileImage: profile?.profileImage || null,
         lastMessage: lastMsg
           ? { text: lastMsg.message, senderId: lastMsg.senderId, createdAt: lastMsg.createdAt }
@@ -109,7 +116,10 @@ const sendMessage = async (req, res) => {
     const { senderId, receiverId, message } = req.body;
     const actualSenderId = req.user?._id || req.user?.id || senderId;
 
-    if (!mongoose.Types.ObjectId.isValid(actualSenderId) || !mongoose.Types.ObjectId.isValid(receiverId)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(actualSenderId) ||
+      !mongoose.Types.ObjectId.isValid(receiverId)
+    ) {
       return res.status(400).json({ message: 'Invalid sender or receiver ID format' });
     }
     if (!message?.trim() && !req.file) {
@@ -121,8 +131,15 @@ const sendMessage = async (req, res) => {
       try {
         const result = await new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream(
-            { folder: 'chat-images', public_id: `chat_${actualSenderId}_${Date.now()}`, resource_type: 'auto' },
-            (error, result) => { if (error) reject(error); else resolve(result); }
+            {
+              folder: 'chat-images',
+              public_id: `chat_${actualSenderId}_${Date.now()}`,
+              resource_type: 'auto',
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
           );
           streamifier.createReadStream(req.file.buffer).pipe(stream);
         });
@@ -152,7 +169,9 @@ const sendMessage = async (req, res) => {
         console.warn('⚠️ FCM not initialized — skipping push');
       } else {
         const receiverUser = await User.findById(receiverId).select('fcmTokens');
-        console.log(`🔥 FCM | Receiver: ${receiverId} | Tokens: ${receiverUser?.fcmTokens?.length || 0}`);
+        console.log(
+          `🔥 FCM | Receiver: ${receiverId} | Tokens: ${receiverUser?.fcmTokens?.length || 0}`
+        );
 
         if (receiverUser?.fcmTokens?.length) {
           const senderUser = await User.findById(actualSenderId).select('fullname email');
@@ -171,7 +190,12 @@ const sendMessage = async (req, res) => {
             tokens: receiverUser.fcmTokens,
             android: {
               priority: 'high',
-              notification: { channelId: 'chat_messages', priority: 'max', defaultSound: true, defaultVibrateTimings: true },
+              notification: {
+                channelId: 'chat_messages',
+                priority: 'max',
+                defaultSound: true,
+                defaultVibrateTimings: true,
+              },
             },
             webpush: {
               headers: { Urgency: 'high' },
@@ -188,7 +212,9 @@ const sendMessage = async (req, res) => {
           };
 
           const response = await messaging.sendEachForMulticast(fcmPayload);
-          console.log(`🔥 FCM sent | success:${response.successCount} fail:${response.failureCount}`);
+          console.log(
+            `🔥 FCM sent | success:${response.successCount} fail:${response.failureCount}`
+          );
 
           const invalidTokens = [];
           response.responses.forEach((r, idx) => {
@@ -198,7 +224,9 @@ const sendMessage = async (req, res) => {
             }
           });
           if (invalidTokens.length) {
-            await User.findByIdAndUpdate(receiverId, { $pull: { fcmTokens: { $in: invalidTokens } } });
+            await User.findByIdAndUpdate(receiverId, {
+              $pull: { fcmTokens: { $in: invalidTokens } },
+            });
           }
         }
       }
@@ -219,7 +247,11 @@ const getMessages = async (req, res) => {
     const rawCurrentId = req.user?._id || req.user?.id;
     const rawReceiverId = req.params.receiverId;
 
-    if (!rawCurrentId || !mongoose.Types.ObjectId.isValid(rawCurrentId) || !mongoose.Types.ObjectId.isValid(rawReceiverId)) {
+    if (
+      !rawCurrentId ||
+      !mongoose.Types.ObjectId.isValid(rawCurrentId) ||
+      !mongoose.Types.ObjectId.isValid(rawReceiverId)
+    ) {
       return res.status(400).json({ message: 'Invalid user or receiver ID' });
     }
 
@@ -265,7 +297,9 @@ const deleteMessage = async (req, res) => {
     await msg.save();
 
     if (req.io) {
-      req.io.to(msg.receiverId.toString()).emit('message_deleted', { messageId: msg._id.toString() });
+      req.io
+        .to(msg.receiverId.toString())
+        .emit('message_deleted', { messageId: msg._id.toString() });
       req.io.to(msg.senderId.toString()).emit('message_deleted', { messageId: msg._id.toString() });
     }
 
@@ -315,5 +349,45 @@ const editMessage = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+const toggleReaction = async (req, res) => {
+  try {
+    const rawCurrentId = req.user?._id || req.user?.id;
+    const { messageId } = req.params;
+    const { emoji } = req.body;
 
-module.exports = { getUsersByGroup, sendMessage, getMessages, deleteMessage, editMessage };
+    if (!mongoose.Types.ObjectId.isValid(messageId)) {
+      return res.status(400).json({ message: 'Invalid message ID' });
+    }
+
+    const msg = await Message.findById(messageId);
+    if (!msg) return res.status(404).json({ message: 'Message not found' });
+
+    const existingIndex = msg.reactions.findIndex(
+      (r) => r.userId.toString() === String(rawCurrentId) && r.emoji === emoji
+    );
+
+    let action;
+    if (existingIndex > -1) {
+      msg.reactions.splice(existingIndex, 1);
+      action = 'remove';
+    } else {
+      msg.reactions.push({ emoji, userId: rawCurrentId });
+      action = 'add';
+    }
+    await msg.save();
+
+    res.json({ msg, action });
+  } catch (error) {
+    console.error('Error in toggleReaction:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = {
+  getUsersByGroup,
+  sendMessage,
+  getMessages,
+  deleteMessage,
+  editMessage,
+  toggleReaction,
+};

@@ -10,6 +10,7 @@ const {
   getMessages,
   editMessage,
   deleteMessage,
+  toggleReaction,
 } = require('../controllers/chatController');
 
 // Use memory storage for Multer to get file buffer for Cloudinary upload
@@ -22,5 +23,6 @@ router.post('/send', authMiddleware, upload.single('image'), sendMessage);
 router.get('/messages/:receiverId', authMiddleware, getMessages);
 router.put('/edit/:messageId', authMiddleware, editMessage);
 router.delete('/delete/:messageId', authMiddleware, deleteMessage);
+router.put('/react/:messageId', authMiddleware, toggleReaction);
 
 module.exports = router;

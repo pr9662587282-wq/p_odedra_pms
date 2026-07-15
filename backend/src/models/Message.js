@@ -20,6 +20,12 @@ const messageSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    reactions: [
+      {
+        emoji: { type: String, required: true },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+      },
+    ],
     imageUrl: { type: String, default: null },
   },
 

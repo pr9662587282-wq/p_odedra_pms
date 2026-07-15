@@ -108,25 +108,23 @@ const Chat = () => {
       lastTapRef.current = { id: msg._id, time: now };
     }
   };
-  const toggleReaction = (msgId, emoji) => {
-    setMessageReactions((prev) => {
-      const current = prev[msgId] || {};
-      const users = current[emoji] || [];
-      const already = users.includes(myId);
-      const updatedUsers = already ? users.filter((id) => id !== myId) : [...users, myId];
-      const updatedEmojiMap = { ...current, [emoji]: updatedUsers };
-      if (updatedUsers.length === 0) delete updatedEmojiMap[emoji];
-
+  const toggleReaction = async (msgId, emoji) => {
+    try {
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL}/chat/react/${msgId}`,
+        { emoji },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       socketRef.current?.emit('message_reaction', {
         messageId: msgId,
         emoji,
         userId: myId,
-        action: already ? 'remove' : 'add',
+        action: res.data.action,
         toUserId: cleanId(selectedUser._id),
       });
-
-      return { ...prev, [msgId]: updatedEmojiMap };
-    });
+    } catch (err) {
+      console.error('Failed to save reaction:', err.response?.data || err.message);
+    }
     setReactionPickerMsg(null);
   };
   ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -668,6 +666,19 @@ const Chat = () => {
       });
       if (myRequestId === requestIdRef.current && Array.isArray(res.data)) {
         setMessages(res.data);
+
+        // Rebuild messageReactions from saved DB data
+        const rebuilt = {};
+        res.data.forEach((m) => {
+          if (m.reactions?.length) {
+            rebuilt[m._id] = {};
+            m.reactions.forEach((r) => {
+              if (!rebuilt[m._id][r.emoji]) rebuilt[m._id][r.emoji] = [];
+              rebuilt[m._id][r.emoji].push(cleanId(r.userId));
+            });
+          }
+        });
+        setMessageReactions(rebuilt);
       }
     } catch (err) {
       console.error(err);

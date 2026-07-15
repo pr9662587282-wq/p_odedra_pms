@@ -1,8 +1,9 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 //import React, { useState } from "react";
 //import { useNavigate } from "react-router-dom";
 import Register from '../auth/Register';
+import axios from 'axios';
 
 function Sidebar_Admin({ onAddUser }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,61 +13,94 @@ function Sidebar_Admin({ onAddUser }) {
   const [openRegister, setOpenRegister] = useState(false);
   const navigate = useNavigate();
   const navItems = [
-    { label: "Dashboard", icon: "grid" },
-    { label: "Analytics", icon: "chart-bar" },
-    { label: "Task", icon: "megaphone" },
-    { label: "Permission", icon: "users" },
-    { label: "+ Add User", icon: "stack" },
-    { label: "Logout", icon: "cloud" },
-    { label: "chat", icon: "trending-up", badge: "NEW" },
-    { label: "Access", icon: "wallet", badge: "NEW" },
-    { label: "leave", icon: "robot", badge: "NEW" },
-    { label: "E-commerce", icon: "shopping-bag" },
-    { label: "Calendar", icon: "calendar" },
-    { label: "User Profile", icon: "user" },
-    { label: "Forms", icon: "document-text" },
-    { label: "Tables", icon: "table" },
+    { label: 'Dashboard', icon: 'grid' },
+    { label: 'Analytics', icon: 'chart-bar' },
+    { label: 'Task', icon: 'megaphone' },
+    { label: 'Permission', icon: 'users' },
+    { label: '+ Add User', icon: 'stack' },
+    { label: 'Logout', icon: 'cloud' },
+    { label: 'chat', icon: 'trending-up', badge: 'NEW' },
+    { label: 'Access', icon: 'wallet', badge: 'NEW' },
+    { label: 'leave', icon: 'robot', badge: 'NEW' },
+    { label: 'E-commerce', icon: 'shopping-bag' },
+    { label: 'Calendar', icon: 'calendar' },
+    { label: 'User Profile', icon: 'user' },
+    { label: 'Forms', icon: 'document-text' },
+    { label: 'Tables', icon: 'table' },
   ];
 
-  const handleNavigation = (label) => {
-    console.log("Navigating for label:", label); // Added for debugging
-    if (label === "Analytics") {
-      navigate("/User_Data_Adminpenal");
+  const handleNavigation = async (label) => {
+    console.log('Navigating for label:', label); // Added for debugging
+    if (label === 'Analytics') {
+      navigate('/User_Data_Adminpenal');
     }
 
-    if (label === "Dashboard") {
-      navigate("/deshbaord");
+    if (label === 'Dashboard') {
+      navigate('/deshbaord');
     }
 
     /*if (label === "CRM") {
       navigate("/register");
     }*/
 
-    if (label === "Logout") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
-      localStorage.removeItem("username");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("groupId");
+    if (label === 'Logout') {
+      const authToken = localStorage.getItem('token');
+
+      // ── FCM token cleanup: is device ka token DB se hatayein ──
+      try {
+        if ('serviceWorker' in navigator && authToken) {
+          const { getMessaging, getToken } = await import('firebase/messaging');
+          const messaging = getMessaging();
+          const currentToken = await getToken(messaging, {
+            vapidKey: 'YOUR_VAPID_KEY', // apni firebase.js wali vapidKey daalein
+          });
+
+          if (currentToken) {
+            await axios.post(
+              `${import.meta.env.VITE_API_URL}/fcm/remove-token`,
+              { token: currentToken },
+              { headers: { Authorization: `Bearer ${authToken}` } }
+            );
+          }
+        }
+      } catch (fcmErr) {
+        console.error('FCM token cleanup failed (continuing logout):', fcmErr);
+      }
+
+      // Service worker unregister — device ko clean karein
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const reg of regs) await reg.unregister();
+        }
+      } catch (swErr) {
+        console.error('SW unregister failed:', swErr);
+      }
+
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('username');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('groupId');
+      localStorage.removeItem('lastFcmUserId'); // ADD — pehle wale fix se match karein
 
       // RESET THEME
-      document.documentElement.setAttribute("data-theme", "light");
+      document.documentElement.setAttribute('data-theme', 'light');
 
       // REDIRECT + REFRESH
-      window.location.href = "/login";
+      window.location.href = '/login';
 
       return;
-      //   navigate("/login");
     }
 
-    if (label === "Task") {
-      navigate("/Task_admin");
+    if (label === 'Task') {
+      navigate('/Task_admin');
     }
-    if (label === "chat") {
-      navigate("/chat");
+    if (label === 'chat') {
+      navigate('/chat');
     }
-    if (label === "leave") {
-      navigate("/leaves");
+    if (label === 'leave') {
+      navigate('/leaves');
     }
 
     /* if (label === "Permission") {
@@ -76,7 +110,7 @@ function Sidebar_Admin({ onAddUser }) {
       navigate("/Access_user_dashboard");
     }*/
 
-    if (label === "+ Add User") {
+    if (label === '+ Add User') {
       if (onAddUser) {
         onAddUser(); // if Dashboard passed one, use it (keeps old behavior there)
       } else {
@@ -88,42 +122,42 @@ function Sidebar_Admin({ onAddUser }) {
 
   const renderIcon = (type) => {
     const baseClasses =
-      "inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-slate-200";
+      'inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-slate-200';
 
     switch (type) {
-      case "grid":
+      case 'grid':
         return <span className={baseClasses}>▦</span>;
-      case "chart-bar":
+      case 'chart-bar':
         return <span className={baseClasses}>📊</span>;
-      case "megaphone":
+      case 'megaphone':
         return <span className={baseClasses}>📣</span>;
-      case "users":
+      case 'users':
         return <span className={baseClasses}>👥</span>;
-      case "stack":
+      case 'stack':
         return <span className={baseClasses}>📚</span>;
-      case "cloud":
+      case 'cloud':
         return <span className={baseClasses}>☁️</span>;
-      case "truck":
+      case 'truck':
         return <span className={baseClasses}>🚚</span>;
-      case "sparkles":
+      case 'sparkles':
         return <span className={baseClasses}>✨</span>;
-      case "trending-up":
+      case 'trending-up':
         return <span className={baseClasses}>📈</span>;
-      case "wallet":
+      case 'wallet':
         return <span className={baseClasses}>💼</span>;
-      case "robot":
+      case 'robot':
         return <span className={baseClasses}>🤖</span>;
-      case "shopping-bag":
+      case 'shopping-bag':
         return <span className={baseClasses}>🛍️</span>;
-      case "calendar":
+      case 'calendar':
         return <span className={baseClasses}>📅</span>;
-      case "user":
+      case 'user':
         return <span className={baseClasses}>👤</span>;
-      case "check-circle":
+      case 'check-circle':
         return <span className={baseClasses}>✅</span>;
-      case "document-text":
+      case 'document-text':
         return <span className={baseClasses}>📝</span>;
-      case "table":
+      case 'table':
         return <span className={baseClasses}>📋</span>;
       default:
         return <span className={baseClasses}>•</span>;
@@ -138,17 +172,13 @@ function Sidebar_Admin({ onAddUser }) {
             onClick={() => handleNavigation(item.label)}
             className={`flex w-full items-center justify-between gap-3 rounded-3xl px-4 py-3 text-left transition ${
               item.active
-                ? "bg-slate-800 text-slate-100 shadow shadow-slate-900"
-                : "hover:bg-slate-800"
+                ? 'bg-slate-800 text-slate-100 shadow shadow-slate-900'
+                : 'hover:bg-slate-800'
             }`}
           >
             <div className="flex items-center gap-3">
               {renderIcon(item.icon)}
-              <div>
-                {!collapse && (
-                  <p className="text-sm font-medium">{item.label}</p>
-                )}
-              </div>
+              <div>{!collapse && <p className="text-sm font-medium">{item.label}</p>}</div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -157,9 +187,7 @@ function Sidebar_Admin({ onAddUser }) {
                   {item.badge}
                 </span>
               ) : null}
-              {!collapse && item.active ? (
-                <span className="text-slate-400">▾</span>
-              ) : null}
+              {!collapse && item.active ? <span className="text-slate-400">▾</span> : null}
             </div>
           </button>
           {item.subItems && item.subItems.length > 0 ? (
@@ -189,9 +217,7 @@ function Sidebar_Admin({ onAddUser }) {
         >
           <div className="flex items-center gap-3">
             {renderIcon(item.icon)}
-            {!collapse && (
-              <p className="text-sm font-medium text-slate-200">{item.label}</p>
-            )}
+            {!collapse && <p className="text-sm font-medium text-slate-200">{item.label}</p>}
           </div>
           {!collapse && item.badge ? (
             <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-semibold uppercase text-slate-950">
@@ -219,9 +245,7 @@ function Sidebar_Admin({ onAddUser }) {
           </div>
           {!collapse && (
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                TailAdmin
-              </p>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">TailAdmin</p>
               <p className="text-base font-semibold text-white">Menu</p>
             </div>
           )}
@@ -238,14 +262,14 @@ function Sidebar_Admin({ onAddUser }) {
 
       <div
         className={`fixed inset-0 z-40 bg-slate-950/80 transition-opacity duration-300 md:hidden ${
-          isOpen ? "opacity-100" : "pointer-events-none opacity-0"
+          isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
         onClick={() => setIsOpen(false)}
       />
 
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-72 max-w-full transform bg-slate-950 text-slate-200 shadow-xl transition duration-300 md:hidden overflow-y-auto no-scrollbar ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-4">
@@ -254,9 +278,7 @@ function Sidebar_Admin({ onAddUser }) {
               TA
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                TailAdmin
-              </p>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">TailAdmin</p>
               <p className="text-base font-semibold text-white">Menu</p>
             </div>
           </div>
@@ -287,7 +309,7 @@ function Sidebar_Admin({ onAddUser }) {
 
       <aside
         className={`hidden md:block fixed top-0 left-0 h-screen bg-slate-950 text-slate-200 overflow-y-auto no-scrollbar touch-pan-y z-50 duration-300 ${
-          collapse ? "w-24" : "w-[300px]"
+          collapse ? 'w-24' : 'w-[300px]'
         }`}
       >
         <div className="mb-10 flex items-center gap-3 px-3">
@@ -296,9 +318,7 @@ function Sidebar_Admin({ onAddUser }) {
           </div>
           {!collapse && (
             <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
-                TailAdmin
-              </p>
+              <p className="text-sm uppercase tracking-[0.3em] text-slate-400">TailAdmin</p>
               <p className="text-lg font-semibold text-white">Menu</p>
             </div>
           )}

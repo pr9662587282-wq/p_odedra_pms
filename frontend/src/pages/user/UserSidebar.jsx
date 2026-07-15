@@ -1,30 +1,31 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { io } from "socket.io-client";
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { io } from 'socket.io-client';
+import axios from 'axios';
 
 const navItems = [
-  { label: "Dashboard", icon: "🏠", path: "/UserDeshboard" },
-  { label: "Profile", icon: "👤", path: "/profile" },
-  { label: "Leave", icon: "🗓️", path: "/leave" },
-  { label: "Attendance", icon: "✅", path: "/attendance" },
-  { label: "Tasks", icon: "📝", path: "/tasks" },
-  { label: "chat", icon: "🗨️", path: "/chat" },
-  { label: "Logout", icon: "🚪", path: "/login" },
-  { label: "User_permission", icon: "🚪", path: "/User_permission" },
+  { label: 'Dashboard', icon: '🏠', path: '/UserDeshboard' },
+  { label: 'Profile', icon: '👤', path: '/profile' },
+  { label: 'Leave', icon: '🗓️', path: '/leave' },
+  { label: 'Attendance', icon: '✅', path: '/attendance' },
+  { label: 'Tasks', icon: '📝', path: '/tasks' },
+  { label: 'chat', icon: '🗨️', path: '/chat' },
+  { label: 'Logout', icon: '🚪', path: '/login' },
+  { label: 'User_permission', icon: '🚪', path: '/User_permission' },
 ];
 
 const profile = {
-  status: "Active",
-  team: "Product",
-  projects: "Active",
+  status: 'Active',
+  team: 'Product',
+  projects: 'Active',
 };
 
 export default function User_Sidebar({ fullName, profileImage }) {
-  const email = localStorage.getItem("username") || "User Email";
-  const initials = (fullName || "User")
-    .split(" ")
+  const email = localStorage.getItem('username') || 'User Email';
+  const initials = (fullName || 'User')
+    .split(' ')
     .map((n) => n[0])
-    .join("")
+    .join('')
     .toUpperCase();
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
@@ -34,35 +35,69 @@ export default function User_Sidebar({ fullName, profileImage }) {
 
   // Connect to socket on every page where Sidebar is present to show "Online" status
   useEffect(() => {
-    const rawId = localStorage.getItem("userId");
-    if (!rawId || rawId === "null" || rawId === "undefined") {
+    const rawId = localStorage.getItem('userId');
+    if (!rawId || rawId === 'null' || rawId === 'undefined') {
       return;
     }
 
-    const userId = String(rawId).replace(/["']/g, "").trim();
+    const userId = String(rawId).replace(/["']/g, '').trim();
 
     const socket = io(import.meta.env.VITE_API_URL);
-    socket.emit("join", userId);
+    socket.emit('join', userId);
 
     return () => {
       socket.disconnect();
     };
   }, [location.pathname]); // Re-evaluate whenever path changes
 
-  const handleNav = (path) => {
-    if (path === "/login") {
+  const handleNav = async (path) => {
+    if (path === '/login') {
       setIsOpen(false);
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
-      localStorage.removeItem("username");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("groupId");
+      const authToken = localStorage.getItem('token');
+
+      // ── FCM token cleanup: is device ka token DB se hatayein ──
+      try {
+        if ('serviceWorker' in navigator && authToken) {
+          const { getMessaging, getToken } = await import('firebase/messaging');
+          const messaging = getMessaging();
+          const currentToken = await getToken(messaging, {
+            vapidKey: 'YOUR_VAPID_KEY', // apni firebase.js wali vapidKey daalein
+          });
+
+          if (currentToken) {
+            await axios.post(
+              `${import.meta.env.VITE_API_URL}/fcm/remove-token`,
+              { token: currentToken },
+              { headers: { Authorization: `Bearer ${authToken}` } }
+            );
+          }
+        }
+      } catch (fcmErr) {
+        console.error('FCM token cleanup failed (continuing logout):', fcmErr);
+      }
+
+      // Service worker unregister — device ko clean karein
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const reg of regs) await reg.unregister();
+        }
+      } catch (swErr) {
+        console.error('SW unregister failed:', swErr);
+      }
+
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('username');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('groupId');
+      localStorage.removeItem('lastFcmUserId'); // ADD
 
       // theme reset
-      document.documentElement.setAttribute("data-theme", "light");
+      document.documentElement.setAttribute('data-theme', 'light');
 
       // pura app refresh
-      window.location.href = "/login";
+      window.location.href = '/login';
       return;
     }
 
@@ -77,8 +112,7 @@ export default function User_Sidebar({ fullName, profileImage }) {
         {profileImage ? (
           <img
             src={
-              profileImage.startsWith("data:") ||
-              profileImage.startsWith("http")
+              profileImage.startsWith('data:') || profileImage.startsWith('http')
                 ? profileImage
                 : `data:image/png;base64,${profileImage}`
             }
@@ -92,11 +126,9 @@ export default function User_Sidebar({ fullName, profileImage }) {
         )}
         {!collapse && (
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-white">
-              {fullName || "User"}
-            </p>
+            <p className="truncate text-sm font-semibold text-white">{fullName || 'User'}</p>
 
-            {email && !email.endsWith("@otp.com") && (
+            {email && !email.endsWith('@otp.com') && (
               <p className="truncate text-xs text-slate-400">{email}</p>
             )}
           </div>
@@ -115,9 +147,7 @@ export default function User_Sidebar({ fullName, profileImage }) {
       {!collapse && (
         <div className="mx-4 mt-4 rounded-2xl bg-slate-800/60 p-4 ring-1 ring-slate-700/50">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 uppercase tracking-widest">
-              Status
-            </span>
+            <span className="text-xs text-slate-400 uppercase tracking-widest">Status</span>
             <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-400">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {profile.status}
@@ -125,20 +155,12 @@ export default function User_Sidebar({ fullName, profileImage }) {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="rounded-xl bg-slate-900 p-3">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider">
-                Team
-              </p>
-              <p className="mt-0.5 text-sm font-semibold text-white">
-                {profile.team}
-              </p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Team</p>
+              <p className="mt-0.5 text-sm font-semibold text-white">{profile.team}</p>
             </div>
             <div className="rounded-xl bg-slate-900 p-3">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider">
-                Projects
-              </p>
-              <p className="mt-0.5 text-sm font-semibold text-white">
-                {profile.projects}
-              </p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Projects</p>
+              <p className="mt-0.5 text-sm font-semibold text-white">{profile.projects}</p>
             </div>
           </div>
         </div>
@@ -153,12 +175,12 @@ export default function User_Sidebar({ fullName, profileImage }) {
               onClick={() => handleNav(item.path)}
               className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium transition-all ${
                 active
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`}
             >
               <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base ${active ? "bg-indigo-500" : "bg-slate-800"}`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base ${active ? 'bg-indigo-500' : 'bg-slate-800'}`}
               >
                 {item.icon}
               </span>
@@ -171,9 +193,7 @@ export default function User_Sidebar({ fullName, profileImage }) {
       {/* Quick stats */}
       {!collapse && (
         <div className="mx-4 mb-5 mt-4 rounded-2xl bg-slate-800/60 p-4 ring-1 ring-slate-700/50">
-          <p className="mb-3 text-[10px] uppercase tracking-widest text-slate-500">
-            Quick Info
-          </p>
+          <p className="mb-3 text-[10px] uppercase tracking-widest text-slate-500">Quick Info</p>
           <div className="space-y-2">
             <div className="flex items-center justify-between rounded-xl bg-slate-900 px-4 py-2.5 text-sm">
               <span className="text-slate-400">Attendance</span>
@@ -204,8 +224,7 @@ export default function User_Sidebar({ fullName, profileImage }) {
           {profileImage ? (
             <img
               src={
-                profileImage.startsWith("data:") ||
-                profileImage.startsWith("http")
+                profileImage.startsWith('data:') || profileImage.startsWith('http')
                   ? profileImage
                   : `data:image/png;base64,${profileImage}`
               }
@@ -218,12 +237,8 @@ export default function User_Sidebar({ fullName, profileImage }) {
             </div>
           )}
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">
-              User Panel
-            </p>
-            <p className="text-sm font-semibold text-white">
-              {fullName || "User"}
-            </p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">User Panel</p>
+            <p className="text-sm font-semibold text-white">{fullName || 'User'}</p>
           </div>
         </div>
         <button
@@ -238,7 +253,7 @@ export default function User_Sidebar({ fullName, profileImage }) {
       {/* ── Mobile overlay ── */}
       <div
         className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
-          isOpen ? "opacity-100" : "pointer-events-none opacity-0"
+          isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
         onClick={() => setIsOpen(false)}
       />
@@ -246,14 +261,14 @@ export default function User_Sidebar({ fullName, profileImage }) {
       {/* ── Sidebar (mobile: drawer, desktop: fixed) ── */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto no-scrollbar bg-slate-950 text-slate-100 shadow-2xl transition-all duration-300 md:translate-x-0 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        } ${collapse ? "md:w-20" : "md:w-72"}`}
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${collapse ? 'md:w-20' : 'md:w-72'}`}
       >
         <div className="flex p-4">
           <button
             onClick={() => setCollapse(!collapse)}
             className={`rounded-xl bg-slate-800 px-3 py-2 transition-all ${
-              collapse ? "mx-auto" : "ml-auto"
+              collapse ? 'mx-auto' : 'ml-auto'
             }`}
           >
             ☰
