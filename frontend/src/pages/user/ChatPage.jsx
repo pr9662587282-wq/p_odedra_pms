@@ -79,6 +79,56 @@ const Chat = () => {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
   };
 
+  // chat rection.........................................................................
+  const REACTION_EMOJIS = ['👍', '😂', '🔥', '😮', '🎉', '🙏'];
+
+  const [reactionPickerMsg, setReactionPickerMsg] = useState(null);
+  const [messageReactions, setMessageReactions] = useState({}); // { msgId: { '': [userId, ...] } }
+  const lastTapRef = useRef({ id: null, time: 0 });
+  // double clicking send reaction
+  const openReactionPicker = (msg) => {
+    if (msg.deleted) return;
+    setReactionPickerMsg(msg);
+  };
+
+  // Desktop
+  const handleMsgDoubleClick = (e, msg) => {
+    e.stopPropagation();
+    openReactionPicker(msg);
+  };
+
+  // Mobile — manual double-tap detection (runs inside your existing handleTouchEnd)
+  const handleMsgTap = (msg) => {
+    if (msg.deleted) return;
+    const now = Date.now();
+    if (lastTapRef.current.id === msg._id && now - lastTapRef.current.time < 300) {
+      openReactionPicker(msg);
+      lastTapRef.current = { id: null, time: 0 };
+    } else {
+      lastTapRef.current = { id: msg._id, time: now };
+    }
+  };
+  const toggleReaction = (msgId, emoji) => {
+    setMessageReactions((prev) => {
+      const current = prev[msgId] || {};
+      const users = current[emoji] || [];
+      const already = users.includes(myId);
+      const updatedUsers = already ? users.filter((id) => id !== myId) : [...users, myId];
+      const updatedEmojiMap = { ...current, [emoji]: updatedUsers };
+      if (updatedUsers.length === 0) delete updatedEmojiMap[emoji];
+
+      socketRef.current?.emit('message_reaction', {
+        messageId: msgId,
+        emoji,
+        userId: myId,
+        action: already ? 'remove' : 'add',
+      });
+
+      return { ...prev, [msgId]: updatedEmojiMap };
+    });
+    setReactionPickerMsg(null);
+  };
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////
   const createPeerConnection = (remoteUserId) => {
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
@@ -236,8 +286,11 @@ const Chat = () => {
       if (navigator.vibrate) navigator.vibrate(30);
     }, 450);
   };
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (msg) => {
     clearTimeout(longPressTimerRef.current);
+    if (!longPressFiredRef.current) {
+      handleMsgTap(msg);
+    }
   };
   const handleTouchMove = () => {
     clearTimeout(longPressTimerRef.current);
@@ -585,6 +638,17 @@ const Chat = () => {
 
     socketRef.current.on('call-ended', () => {
       cleanupCall();
+    });
+    socketRef.current.on('message_reaction', ({ messageId, emoji, userId, action }) => {
+      setMessageReactions((prev) => {
+        const current = prev[messageId] || {};
+        const users = current[emoji] || [];
+        const updatedUsers =
+          action === 'add' ? [...new Set([...users, userId])] : users.filter((id) => id !== userId);
+        const updatedEmojiMap = { ...current, [emoji]: updatedUsers };
+        if (updatedUsers.length === 0) delete updatedEmojiMap[emoji];
+        return { ...prev, [messageId]: updatedEmojiMap };
+      });
     });
 
     //////////////////////////////
@@ -1089,8 +1153,9 @@ const Chat = () => {
                           className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            onClick={() => handleMsgClick(msg)} // ADD
-
+                            onClick={() => handleMsgClick(msg)}
+                            onDoubleClick={(e) => handleMsgDoubleClick(e, msg)}
+                            onContextMenu={(e) => e.preventDefault()}
                             className={`relative max-w-[85%] md:max-w-[75%] lg:max-w-[65%] px-4 py-2.5 rounded-2xl text-[13.5px] font-medium shadow-sm transition-all select-none ${
                               msg.deleted ? 'cursor-default' : 'cursor-pointer'
                             } ${isSelected ? 'ring-2 ring-indigo-400 dark:ring-indigo-500' : ''} ${
@@ -1142,6 +1207,52 @@ const Chat = () => {
                                 minute: '2-digit',
                               })}
                             </p>
+                            {reactionPickerMsg?._id === msg._id && (
+                              <>
+                                <div
+                                  className="fixed inset-0 z-20"
+                                  onClick={() => setReactionPickerMsg(null)}
+                                />
+                                <div
+                                  className={`absolute -top-11 z-30 flex gap-1 bg-white dark:bg-[#1E293B] rounded-full shadow-lg px-2 py-1.5 border border-slate-200 dark:border-slate-700 ${isMe ? 'right-0' : 'left-0'}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {REACTION_EMOJIS.map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => toggleReaction(msg._id, emoji)}
+                                      className="text-lg hover:scale-125 active:scale-95 transition-transform"
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                            {/* Existing reactions on the message */}
+                            {messageReactions[msg._id] &&
+                              Object.keys(messageReactions[msg._id]).length > 0 && (
+                                <div
+                                  className={`flex gap-1 mt-1 flex-wrap ${isMe ? 'justify-end' : 'justify-start'}`}
+                                >
+                                  {Object.entries(messageReactions[msg._id]).map(
+                                    ([emoji, users]) => (
+                                      <button
+                                        key={emoji}
+                                        onClick={() => toggleReaction(msg._id, emoji)}
+                                        className={`text-[11px] px-1.5 py-0.5 rounded-full border flex items-center gap-0.5 ${
+                                          users.includes(myId)
+                                            ? 'bg-indigo-100 dark:bg-indigo-500/20 border-indigo-300 dark:border-indigo-500/40'
+                                            : 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
+                                        }`}
+                                      >
+                                        <span>{emoji}</span>
+                                        <span className="font-semibold">{users.length}</span>
+                                      </button>
+                                    )
+                                  )}
+                                </div>
+                              )}
                           </div>
                         </div>
                       );
