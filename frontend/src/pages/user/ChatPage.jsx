@@ -1242,26 +1242,37 @@ const Chat = () => {
                               </>
                             )}
                             {/* Existing reactions on the message */}
+                            {/* Existing reactions on the message — WhatsApp style: small pill overlapping bottom corner */}
                             {messageReactions[msg._id] &&
                               Object.keys(messageReactions[msg._id]).length > 0 && (
                                 <div
-                                  className={`flex gap-1 mt-1 flex-wrap ${isMe ? 'justify-end' : 'justify-start'}`}
+                                  className={`absolute -bottom-3 flex items-center gap-0.5 bg-white dark:bg-[#252F3F] rounded-full shadow-md border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 ${
+                                    isMe ? 'right-2' : 'left-2'
+                                  }`}
                                 >
                                   {Object.entries(messageReactions[msg._id]).map(
                                     ([emoji, users]) => (
                                       <button
                                         key={emoji}
                                         onClick={() => toggleReaction(msg._id, emoji)}
-                                        className={`text-[11px] px-1.5 py-0.5 rounded-full border flex items-center gap-0.5 ${
-                                          users.includes(myId)
-                                            ? 'bg-indigo-100 dark:bg-indigo-500/20 border-indigo-300 dark:border-indigo-500/40'
-                                            : 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
+                                        className={`flex items-center gap-0.5 text-[13px] leading-none ${
+                                          users.includes(myId) ? 'opacity-100' : 'opacity-90'
                                         }`}
                                       >
                                         <span>{emoji}</span>
-                                        <span className="font-semibold">{users.length}</span>
                                       </button>
                                     )
+                                  )}
+                                  {Object.values(messageReactions[msg._id]).reduce(
+                                    (sum, arr) => sum + arr.length,
+                                    0
+                                  ) > 1 && (
+                                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 ml-0.5">
+                                      {Object.values(messageReactions[msg._id]).reduce(
+                                        (sum, arr) => sum + arr.length,
+                                        0
+                                      )}
+                                    </span>
                                   )}
                                 </div>
                               )}
