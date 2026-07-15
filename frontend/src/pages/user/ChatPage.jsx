@@ -1259,14 +1259,14 @@ const Chat = () => {
                                   onClick={() => setReactionPickerMsg(null)}
                                 />
                                 <div
-                                  className={`absolute -top-11 z-30 flex gap-1 bg-white dark:bg-[#1E293B] rounded-full shadow-lg px-2 py-1.5 border border-slate-200 dark:border-slate-700 ${isMe ? 'right-0' : 'left-0'}`}
+                                  className={`absolute -top-9 z-30 flex gap-0.5 bg-white dark:bg-[#1E293B] rounded-full shadow-lg px-1.5 py-1 border border-slate-200 dark:border-slate-700 ${isMe ? 'right-0' : 'left-0'}`}
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   {REACTION_EMOJIS.map((emoji) => (
                                     <button
                                       key={emoji}
                                       onClick={() => toggleReaction(msg._id, emoji)}
-                                      className="text-lg hover:scale-125 active:scale-95 transition-transform"
+                                      className="text-sm leading-none px-0.5 hover:scale-125 active:scale-95 transition-transform"
                                     >
                                       {emoji}
                                     </button>
@@ -1279,7 +1279,7 @@ const Chat = () => {
                             {messageReactions[msg._id] &&
                               Object.keys(messageReactions[msg._id]).length > 0 && (
                                 <div
-                                  className={`absolute -bottom-3 flex items-center gap-0.5 bg-white dark:bg-[#252F3F] rounded-full shadow-md border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 ${
+                                  className={`absolute -bottom-2.5 flex items-center gap-px bg-white dark:bg-[#252F3F] rounded-full shadow-md border border-slate-200 dark:border-slate-700 px-1 py-0.5 ${
                                     isMe ? 'right-2' : 'left-2'
                                   }`}
                                 >
@@ -1288,7 +1288,7 @@ const Chat = () => {
                                       <button
                                         key={emoji}
                                         onClick={() => toggleReaction(msg._id, emoji)}
-                                        className={`flex items-center gap-0.5 text-[13px] leading-none ${
+                                        className={`flex items-center text-[11px] leading-none px-0.5 ${
                                           users.includes(myId) ? 'opacity-100' : 'opacity-90'
                                         }`}
                                       >
