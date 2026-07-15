@@ -1259,7 +1259,7 @@ const Chat = () => {
                                   onClick={() => setReactionPickerMsg(null)}
                                 />
                                 <div
-                                  className={`absolute -top-11 z-30 flex gap-2 bg-white dark:bg-[#1E293B] rounded-full shadow-lg px-2 py-1.5 border border-slate-200 dark:border-slate-700 ${isMe ? 'right-0' : 'left-0'}`}
+                                  className={`absolute -top-11 z-30 flex gap-4 bg-white dark:bg-[#1E293B] rounded-full shadow-lg px-2 py-1.5 border border-slate-200 dark:border-slate-700 ${isMe ? 'right-0' : 'left-0'}`}
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   {REACTION_EMOJIS.map((emoji) => (
