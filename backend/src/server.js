@@ -73,6 +73,25 @@ io.on('connection', (socket) => {
   });
 });
 
+// ---------------- TYPING INDICATOR (yahan bhi add karo) ----------------
+socket.on('typing', ({ toUserId }) => {
+  const cleanTo = String(toUserId).replace(/["']/g, '');
+  io.to(cleanTo).emit('user_typing', { fromUserId: socket.userId });
+});
+// -----------------------------------------------------------------------
+
+socket.on('disconnect', () => {
+  if (socket.userId && onlineUsers.has(socket.userId)) {
+    const sockets = onlineUsers.get(socket.userId);
+    sockets.delete(socket.id);
+    if (sockets.size === 0) {
+      onlineUsers.delete(socket.userId);
+    }
+    io.emit('online_users', Array.from(onlineUsers.keys()));
+  }
+  console.log(`❌ Socket disconnected: ${socket.id}`);
+});
+
 server.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
   console.log(`📝 Login endpoint: http://localhost:${PORT}/login`);

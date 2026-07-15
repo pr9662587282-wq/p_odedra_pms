@@ -46,7 +46,10 @@ const Chat = () => {
 
   // ---------------- MESSAGE SELECT / EDIT / DELETE STATE ----------------
   const [selectedMsg, setSelectedMsg] = useState(null); // msg picked for the action bar (Edit/Delete)
-  const [editingMsg, setEditingMsg] = useState(null); // msg currently being edited in the input box
+  const [editingMsg, setEditingMsg] = useState(null);
+  const [isPeerTyping, setIsPeerTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
+  const lastTypingSentRef = useRef(0); // msg currently being edited in the input box
   const longPressTimerRef = useRef(null);
   const longPressFiredRef = useRef(false);
   const inputRef = useRef(null);
@@ -489,6 +492,7 @@ const Chat = () => {
     socketRef.current = io(import.meta.env.VITE_API_URL, {
       auth: { token },
     });
+    socketRef.current.emit('join', myId);
     // no socket.emit('join', myId) — server joins the room itself from the verified JWT
     socketRef.current.on('receive_message', (msg) => {
       const activeUser = selectedUserRef.current;
@@ -525,6 +529,19 @@ const Chat = () => {
       }
     });
 
+    // typing on chat live viw scoket io
+    socketRef.current.on('user_typing', ({ fromUserId }) => {
+      const activeUser = selectedUserRef.current;
+      if (activeUser && cleanId(fromUserId) === cleanId(activeUser._id)) {
+        setIsPeerTyping(true);
+
+        // 3 second baad automatically "typing" hata do agar naya event na aaye
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
+          setIsPeerTyping(false);
+        }, 3000);
+      }
+    });
     ///   video call code are here
 
     socketRef.current.on('incoming-call', ({ fromUserId, fromName, offer }) => {
@@ -585,8 +602,9 @@ const Chat = () => {
   const openChat = async (targetUser) => {
     setSelectedUser(targetUser);
     setMessages([]);
-    setSelectedMsg(null); // ADD
-    cancelEdit(); // ADD // user switch karte hi purana data turant clear
+    setSelectedMsg(null);
+    cancelEdit();
+    setIsPeerTyping(false); // naya user select karte hi purana typing status clear karo
     await fetchMessages(targetUser._id);
   };
   const getUsers = async (groupId) => {
@@ -645,6 +663,17 @@ const Chat = () => {
     if (file) {
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
+    }
+  };
+  // typing on chat live
+  const handleTyping = () => {
+    if (!selectedUser || !socketRef.current) return;
+
+    const now = Date.now();
+    // Har 2 second me ek baar hi typing event bhejo (spam se bachne ke liye)
+    if (now - lastTypingSentRef.current > 2000) {
+      socketRef.current.emit('typing', { toUserId: cleanId(selectedUser._id) });
+      lastTypingSentRef.current = now;
     }
   };
   const sendMessage = async (e) => {
@@ -991,9 +1020,11 @@ const Chat = () => {
                           }`}
                         />
                         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                          {onlineUsers.some((oid) => oid === cleanId(selectedUser._id))
-                            ? 'Online'
-                            : 'Offline'}
+                          {isPeerTyping
+                            ? `${selectedUser?.fullname || selectedUser?.fullName || selectedUser?.name || 'User'} is typing...`
+                            : onlineUsers.some((oid) => oid === cleanId(selectedUser._id))
+                              ? 'Online'
+                              : 'Offline'}
                         </span>
                       </div>
                     </div>
@@ -1149,7 +1180,10 @@ const Chat = () => {
                     <Input
                       placeholder="Type a message..."
                       value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                      onChange={(e) => {
+                        setMessage(e.target.value);
+                        handleTyping();
+                      }}
                       className="flex-1 h-12 rounded-2xl bg-slate-50 dark:bg-[#1E293B]/40 border-none text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-indigo-500/40 focus:ring-offset-0 transition-all"
                     />
                     <Button
