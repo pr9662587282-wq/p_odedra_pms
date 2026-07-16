@@ -1,10 +1,32 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 node_modules
 .env
 dist
 build
 coverage
 =======
+=======
+# Dependencies
+node_modules
+
+# Environment variables - NEVER commit these
+.env
+.env.*
+!.env.example
+
+# Secret/credential files - NEVER commit these
+src/beckend/config/firebase-service-account.json.json
+src/beckend/drive-tokens.json
+src/beckend/config/*.json
+
+# Build output
+dist
+dist-ssr
+build
+coverage
+
+>>>>>>> d1a3e502c84f659dc25a1f8390551a6f2767de34
 # Logs
 logs
 *.log
@@ -14,12 +36,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
+# Editor directories
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -29,4 +46,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+<<<<<<< HEAD
 >>>>>>> 7e43dd1a57ac93538dac9111b5d929502ba60ac7
+=======
+
+# Local test files
+test-body.json
+*.local
+>>>>>>> d1a3e502c84f659dc25a1f8390551a6f2767de34

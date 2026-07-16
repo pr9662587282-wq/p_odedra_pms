@@ -1,9 +1,4 @@
 export default {
-<<<<<<< HEAD
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-  theme: {
-    extend: {},
-=======
   darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
@@ -18,7 +13,6 @@ export default {
         border: "hsl(var(--border))",
       },
     },
->>>>>>> d1a3e502c84f659dc25a1f8390551a6f2767de34
   },
   plugins: [],
 };
