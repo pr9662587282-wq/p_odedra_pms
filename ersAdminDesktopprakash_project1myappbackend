@@ -1,0 +1,191 @@
+[33mcommit 56d6103cba91438f80bd82dfecb69ee26479b9df[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: devloper-krishang <developer@krishangtechnolab.com>
+Date:   Tue Jul 14 16:31:15 2026 +0530
+
+    Add FCM remove-token route for logout cleanup
+
+ .vscode/settings.json                              |     4 [32m+[m[31m-[m
+ README.md                                          |    16 [31m-[m
+ components.json                                    |    25 [31m-[m
+ employee-management/.gitignore                     |     0
+ employee-management/README.md                      |     0
+ employee-management/backend/app.js                 |     0
+ employee-management/backend/config/cloudinary.js   |     0
+ employee-management/backend/config/db.js           |     0
+ .../backend/config/firebaseAdmin.js                |     0
+ employee-management/backend/config/jwt.js          |     0
+ .../backend/controllers/attendanceController.js    |     0
+ .../backend/controllers/chatController.js          |     0
+ .../backend/controllers/googleDriveController.js   |     0
+ .../backend/controllers/leaveController.js         |     0
+ .../backend/controllers/linkedinController.js      |     0
+ .../backend/controllers/permissionController.js    |     0
+ .../backend/controllers/profileController.js       |     0
+ .../backend/controllers/themeController.js         |     0
+ .../backend/controllers/userController.js          |     0
+ .../backend/controllers/userFormController.js      |     0
+ .../backend/middleware/adminOnly.js                |     0
+ employee-management/backend/middleware/auth.js     |     0
+ .../backend/middleware/errorHandler.js             |     0
+ employee-management/backend/middleware/upload.js   |     0
+ employee-management/backend/models/Attendance.js   |     0
+ employee-management/backend/models/Leave.js        |     0
+ employee-management/backend/models/Message.js      |     0
+ employee-management/backend/models/Permission.js   |     0
+ employee-management/backend/models/Profile.js      |     0
+ employee-management/backend/models/ThemeModel.js   |     0
+ employee-management/backend/models/User.js         |     0
+ employee-management/backend/models/UserFormData.js |     0
+ .../backend/models/UserProfileModel.js             |     0
+ employee-management/backend/package.json           |     0
+ .../backend/routes/attendanceRoutes.js             |     0
+ employee-management/backend/routes/chatRoutes.js   |     0
+ employee-management/backend/routes/fcmRoutes.js    |     0
+ .../backend/routes/googleDriveRoutes.js            |     0
+ employee-management/backend/routes/leaveRoutes.js  |     0
+ .../backend/routes/linkedinRoutes.js               |     0
+ .../backend/routes/permissionRoutes.js             |     0
+ .../backend/routes/profileRoutes.js                |     0
+ employee-management/backend/routes/themeRoutes.js  |     0
+ .../backend/routes/userFormRoutes.js               |     0
+ employee-management/backend/routes/userRoutes.js   |     0
+ employee-management/backend/server.js              |     0
+ .../backend/services/attendanceService.js          |     0
+ .../backend/services/leaveService.js               |     0
+ .../backend/services/notificationService.js        |     0
+ .../backend/services/userService.js                |     0
+ .../backend/swagger/swaggerConfig.js               |     0
+ employee-management/backend/utils/helpers.js       |     0
+ employee-management/backend/utils/sendEmail.js     |     0
+ .../backend/validations/leaveValidation.js         |     0
+ .../backend/validations/userValidation.js          |     0
+ employee-management/frontend/package.json          |     0
+ employee-management/frontend/src/App.css           |     0
+ employee-management/frontend/src/App.jsx           |     0
+ .../frontend/src/api/attendanceApi.js              |     0
+ .../frontend/src/api/axiosInstance.js              |     0
+ employee-management/frontend/src/api/chatApi.js    |     0
+ employee-management/frontend/src/api/leaveApi.js   |     0
+ employee-management/frontend/src/api/profileApi.js |     0
+ employee-management/frontend/src/api/userApi.js    |     0
+ .../frontend/src/components/Button.jsx             |     0
+ .../frontend/src/components/Modal.jsx              |     0
+ .../frontend/src/components/Navbar.jsx             |     0
+ .../frontend/src/components/Sidebar.jsx            |     0
+ .../frontend/src/components/Table.jsx              |     0
+ .../frontend/src/context/AuthContext.jsx           |     0
+ .../frontend/src/context/ThemeContext.jsx          |     0
+ employee-management/frontend/src/hooks/useAuth.js  |     0
+ employee-management/frontend/src/hooks/useFetch.js |     0
+ employee-management/frontend/src/hooks/useTheme.js |     0
+ employee-management/frontend/src/index.css         |     0
+ .../frontend/src/layouts/AdminLayout.jsx           |     0
+ .../frontend/src/layouts/UserLayout.jsx            |     0
+ employee-management/frontend/src/main.jsx          |     0
+ .../frontend/src/pages/AdminDashboard.jsx          |     0
+ .../frontend/src/pages/AdminLeave.jsx              |     0
+ .../frontend/src/pages/AdminUsers.jsx              |     0
+ .../frontend/src/pages/AttendancePage.jsx          |     0
+ .../frontend/src/pages/ChatPage.jsx                |     0
+ .../frontend/src/pages/Dashboard.jsx               |     0
+ .../frontend/src/pages/ForgotPassword.jsx          |     0
+ .../frontend/src/pages/LeavePage.jsx               |     0
+ employee-management/frontend/src/pages/Login.jsx   |     0
+ .../frontend/src/pages/ProfilePage.jsx             |     0
+ .../frontend/src/pages/Register.jsx                |     0
+ .../frontend/src/pages/TaskPage.jsx                |     0
+ .../frontend/src/routes/AppRoutes.jsx              |     0
+ .../frontend/src/routes/ProtectedRoute.jsx         |     0
+ .../frontend/src/utils/constants.js                |     0
+ employee-management/frontend/src/utils/helpers.js  |     0
+ eslint.config.js                                   |    21 [31m-[m
+ index.html                                         |    13 [31m-[m
+ myapp                                              |     2 [32m+[m[31m-[m
+ package-lock.json                                  | 10431 [32m+++++[m[31m--------------[m
+ package.json                                       |    82 [32m+[m[31m-[m
+ postcss.config.cjs                                 |     6 [31m-[m
+ public/favicon.svg                                 |     1 [31m-[m
+ public/icons.svg                                   |    24 [31m-[m
+ src/App.css                                        |     1 [31m-[m
+ src/App.jsx                                        |    82 [31m-[m
+ src/Theme/ThemeContext.jsx                         |    95 [31m-[m
+ src/admin_penal/Access_user_deshbaord.jsx          |   242 [31m-[m
+ src/admin_penal/Dashboard.jsx                      |   341 [31m-[m
+ src/admin_penal/Sidebar_Admin.jsx                  |   293 [31m-[m
+ src/admin_penal/Task_admin.jsx                     |   387 [31m-[m
+ src/admin_penal/User_Data_Adminpenal.jsx           |   570 [31m-[m
+ src/assets/download (1).jfif                       |   Bin [31m5772[m -> [32m0[m bytes
+ src/assets/hero.png                                |   Bin [31m13057[m -> [32m0[m bytes
+ src/assets/photo-1624770802806-5df97af960b6.png    |   Bin [31m28673[m -> [32m0[m bytes
+ src/assets/react.svg                               |     1 [31m-[m
+ src/assets/vite.svg                                |     1 [31m-[m
+ src/auth/Forget_password.jsx                       |    97 [31m-[m
+ src/auth/Login.jsx                                 |   495 [31m-[m
+ src/auth/Register.jsx                              |   404 [31m-[m
+ src/beckend/controller/UserController.js           |   604 [31m--[m
+ src/beckend/controller/User_attendance.js          |   203 [31m-[m
+ src/beckend/controller/User_from_controller.js     |   170 [31m-[m
+ src/beckend/controller/linkedinController.js       |    31 [31m-[m
+ src/beckend/controller/permissionController.js     |   195 [31m-[m
+ src/beckend/controller/profileController.js        |   381 [31m-[m
+ src/beckend/controller/themeController.js          |    58 [31m-[m
+ src/beckend/image_upload/upload.js                 |    12 [31m-[m
+ src/beckend/index.js                               |    80 [31m-[m
+ src/beckend/models/Attendance.js                   |    23 [31m-[m
+ src/beckend/models/Permission.js                   |    57 [31m-[m
+ src/beckend/models/Profile.js                      |    53 [31m-[m
+ src/beckend/models/ThemeModel.js                   |    22 [31m-[m
+ src/beckend/models/User.js                         |    11 [31m-[m
+ src/beckend/models/User_fromdata.js                |    20 [31m-[m
+ src/beckend/models/User_profile_model.js           |    55 [31m-[m
+ src/beckend/route/Attendance_route.js              |    35 [31m-[m
+ src/beckend/route/UserFromRoute.js                 |    30 [31m-[m
+ src/beckend/route/UserRoute.js                     |    45 [31m-[m
+ src/beckend/route/linkedinRoutes.js                |    18 [31m-[m
+ src/beckend/route/permissionRoute.js               |    25 [31m-[m
+ src/beckend/route/profileRoute.js                  |    47 [31m-[m
+ src/beckend/route/themeRoutes.js                   |    12 [31m-[m
+ src/beckend/server.js                              |    68 [31m-[m
+ src/components/select.jsx                          |    69 [31m-[m
+ src/components/ui/alert.jsx                        |    50 [31m-[m
+ src/components/ui/avatar.jsx                       |    75 [31m-[m
+ src/components/ui/badge.jsx                        |    32 [31m-[m
+ src/components/ui/button.jsx                       |    49 [31m-[m
+ src/components/ui/button.tsx                       |    67 [31m-[m
+ src/components/ui/calendar.jsx                     |   127 [31m-[m
+ src/components/ui/card.jsx                         |    76 [31m-[m
+ src/components/ui/checkbox.jsx                     |    36 [31m-[m
+ src/components/ui/dialog.jsx                       |    98 [31m-[m
+ src/components/ui/dropdown-menu.jsx                |   115 [31m-[m
+ src/components/ui/input-otp.tsx                    |    85 [31m-[m
+ src/components/ui/input.jsx                        |    16 [31m-[m
+ src/components/ui/label.jsx                        |    16 [31m-[m
+ src/components/ui/menubar.jsx                      |   116 [31m-[m
+ src/components/ui/popover.jsx                      |    80 [31m-[m
+ src/components/ui/radio-group.jsx                  |    36 [31m-[m
+ src/components/ui/scroll-area.jsx                  |    48 [31m-[m
+ src/components/ui/select.jsx                       |    69 [31m-[m
+ src/components/ui/separator.jsx                    |    26 [31m-[m
+ src/components/ui/sheet.jsx                        |   131 [31m-[m
+ src/components/ui/sonner.jsx                       |    41 [31m-[m
+ src/components/ui/switch.jsx                       |    27 [31m-[m
+ src/components/ui/table.jsx                        |   110 [31m-[m
+ src/components/ui/tabs.jsx                         |    72 [31m-[m
+ src/components/ui/textarea.jsx                     |    18 [31m-[m
+ src/components/ui/tooltip.jsx                      |    44 [31m-[m
+ src/index.css                                      |    64 [31m-[m
+ src/lib/utils.ts                                   |     6 [31m-[m
+ src/main.jsx                                       |    17 [31m-[m
+ src/userPenal/Attendance_show.jsx                  |   666 [31m--[m
+ src/userPenal/Edit_basic_profile.jsx               |   329 [31m-[m
+ src/userPenal/Task_show.jsx                        |   515 [31m-[m
+ src/userPenal/UserDeshboard.jsx                    |   689 [31m--[m
+ src/userPenal/User_Sidebar.jsx                     |   214 [31m-[m
+ src/userPenal/User_form.jsx                        |   239 [31m-[m
+ src/userPenal/User_leave_add.jsx                   |   686 [31m--[m
+ src/userPenal/User_permission.jsx                  |   552 [31m-[m
+ src/userPenal/User_profile_Edit.jsx                |   699 [31m--[m
+ tailwind.config.js                                 |    18 [31m-[m
+ tsconfig.json                                      |    12 [31m-[m
+ vite.config.js                                     |    35 [31m-[m
+ 184 files changed, 2587 insertions(+), 19772 deletions(-)
