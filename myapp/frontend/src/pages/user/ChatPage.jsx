@@ -342,7 +342,10 @@ const Chat = () => {
     const str = String(val).replace(/["']/g, '').trim();
     return str === 'null' || str === 'undefined' ? '' : str;
   };
-
+  const resolveUrl = (url) => {
+    if (!url) return null;
+    return url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL}${url}`;
+  };
   // Initialize myId immediately from localStorage for faster isMe check
   const [myId, setMyId] = useState(() => cleanId(localStorage.getItem('userId')));
   const role = localStorage.getItem('role');
@@ -1232,14 +1235,14 @@ const Chat = () => {
                               <>
                                 {msg.imageUrl && (
                                   <img
-                                    src={msg.imageUrl}
+                                    src={resolveUrl(msg.imageUrl)}
                                     alt="sent"
                                     className="rounded-xl max-w-[220px] mb-1.5 cursor-pointer hover:opacity-95 transition-opacity"
                                   />
                                 )}
                                 {msg.fileUrl && (
                                   <a
-                                    href={msg.fileUrl}
+                                    href={resolveUrl(msg.fileUrl)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-2 bg-white/10 dark:bg-black/20 rounded-xl px-3 py-2 mb-1.5 hover:opacity-80 transition-opacity"
