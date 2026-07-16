@@ -38,6 +38,7 @@ const Chat = () => {
   const fileInputRef = useRef(null);
   // online user here or not
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const pendingAcceptRef = useRef(false);
   // Track notification permission — 'granted' | 'denied' | 'default'
   const [notifPermission, setNotifPermission] = useState(
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
@@ -195,18 +196,18 @@ const Chat = () => {
   };
 
   // Callee: accept the incoming call
-  const acceptCall = async () => {
-    if (!incomingCall) return;
+  const acceptCall = async (callData) => {
+    const call = callData || incomingCall;
+    if (!call) return;
     try {
-      callPartnerIdRef.current = cleanId(incomingCall.fromUserId);
-      setCallPeerName(incomingCall.fromName || 'User');
+      callPartnerIdRef.current = cleanId(call.fromUserId);
+      setCallPeerName(call.fromName || 'User');
 
       const stream = await getLocalStream();
       const pc = createPeerConnection(callPartnerIdRef.current);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-      await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
-      // flush any ICE candidates that arrived before remote description was set
+      await pc.setRemoteDescription(new RTCSessionDescription(call.offer));
       for (const c of pendingCandidatesRef.current) await pc.addIceCandidate(c);
       pendingCandidatesRef.current = [];
 
@@ -225,7 +226,6 @@ const Chat = () => {
       setCallStatus('idle');
     }
   };
-
   const rejectCall = () => {
     if (incomingCall) {
       socketRef.current?.emit('call-rejected', { toUserId: cleanId(incomingCall.fromUserId) });
@@ -613,8 +613,14 @@ const Chat = () => {
 
     socketRef.current.on('incoming-call', ({ fromUserId, fromName, offer }) => {
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      setIncomingCall({ fromUserId, fromName, offer });
+      const callData = { fromUserId, fromName, offer };
+      setIncomingCall(callData);
       setCallStatus('ringing');
+
+      if (pendingAcceptRef.current) {
+        pendingAcceptRef.current = false;
+        acceptCall(callData); // auto-accept — user already tapped Accept from the notification
+      }
     });
 
     socketRef.current.on('call-answered', async ({ answer }) => {
@@ -693,9 +699,12 @@ const Chat = () => {
       if (callAction === 'decline') {
         socketRef.current?.emit('call-rejected', { toUserId: cleanId(fromUserId) });
       }
+      if (callAction === 'accept') {
+        pendingAcceptRef.current = true;
+        setCallStatus('ringing'); // show "connecting" UI right away instead of the chat list
+      }
     }
   }, [myId]);
-
   const fetchMessages = async (receiverId) => {
     const myRequestId = ++requestIdRef.current;
     try {
@@ -1477,7 +1486,7 @@ const Chat = () => {
               <PhoneOff size={16} />
             </button>
             <button
-              onClick={acceptCall}
+              onClick={() => acceptCall()}
               className="h-9 w-9 rounded-full bg-emerald-500 text-white flex items-center justify-center"
             >
               <Phone size={16} />
