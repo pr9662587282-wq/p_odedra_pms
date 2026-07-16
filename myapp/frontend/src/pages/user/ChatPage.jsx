@@ -197,6 +197,7 @@ const Chat = () => {
 
   // Callee: accept the incoming call
   const acceptCall = async (callData) => {
+    console.log('✅ acceptCall triggered', callData);
     const call = callData || incomingCall;
     if (!call) return;
     try {
@@ -612,6 +613,7 @@ const Chat = () => {
     ///   video call code are here
 
     socketRef.current.on('incoming-call', ({ fromUserId, fromName, offer }) => {
+      console.log('📞 incoming-call received! pendingAccept:', pendingAcceptRef.current);
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       const callData = { fromUserId, fromName, offer };
       setIncomingCall(callData);
@@ -700,8 +702,9 @@ const Chat = () => {
         socketRef.current?.emit('call-rejected', { toUserId: cleanId(fromUserId) });
       }
       if (callAction === 'accept') {
+        console.log('📱 Accept clicked from notification, fromUserId:', fromUserId);
         pendingAcceptRef.current = true;
-        setCallStatus('ringing'); // show "connecting" UI right away instead of the chat list
+        setCallStatus('ringing');
       }
     }
   }, [myId]);
@@ -1496,7 +1499,7 @@ const Chat = () => {
       )}
 
       {/* Active call / calling overlay */}
-      {(callStatus === 'calling' || callStatus === 'in-call') && (
+      {(callStatus === 'calling' || callStatus === 'ringing' || callStatus === 'in-call') && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
           <div className="flex-1 relative">
             <video
@@ -1515,6 +1518,11 @@ const Chat = () => {
             {callStatus === 'calling' && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                 <p className="text-white text-sm font-semibold">Calling {callPeerName}…</p>
+              </div>
+            )}
+            {callStatus === 'ringing' && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                <p className="text-white text-sm font-semibold">Connecting…</p>
               </div>
             )}
           </div>
