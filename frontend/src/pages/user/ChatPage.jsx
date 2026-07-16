@@ -779,9 +779,18 @@ const Chat = () => {
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
+    if (!file) return;
+
+    if (file.size > 25 * 1024 * 1024) {
+      toast('File too large', { description: 'Max file size is 25MB.' });
+      return;
+    }
+
+    setImageFile(file);
+    if (file.type.startsWith('image/')) {
       setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImagePreview(null);
     }
   };
   // typing on chat live
