@@ -1,0 +1,12 @@
+﻿node_modules/
+frontend/.env
+backend/.env
+backend/node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+backend/dist/
+uploads/
+backend/uploads/
+frontend/uploads/
+backend/src/config/firebase-service-account.json
