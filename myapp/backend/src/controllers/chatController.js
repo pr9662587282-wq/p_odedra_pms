@@ -123,18 +123,27 @@ const sendMessage = async (req, res) => {
       return res.status(400).json({ message: 'Invalid sender or receiver ID format' });
     }
     if (!message?.trim() && !req.file) {
-      return res.status(400).json({ message: 'Message or image required' });
+      return res.status(400).json({ message: 'Message or file required' });
     }
 
     let imageUrl = null;
+    let fileUrl = null;
+    let fileName = null;
+    let fileType = null;
+    let fileSize = null;
+
     if (req.file) {
       try {
+        const isImage = req.file.mimetype.startsWith('image/');
+        const isVideo = req.file.mimetype.startsWith('video/');
+        const resourceType = isVideo ? 'video' : isImage ? 'image' : 'raw';
+
         const result = await new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream(
             {
-              folder: 'chat-images',
+              folder: 'chat-files',
               public_id: `chat_${actualSenderId}_${Date.now()}`,
-              resource_type: 'auto',
+              resource_type: resourceType,
             },
             (error, result) => {
               if (error) reject(error);
@@ -143,10 +152,25 @@ const sendMessage = async (req, res) => {
           );
           streamifier.createReadStream(req.file.buffer).pipe(stream);
         });
-        imageUrl = result.secure_url;
+
+        if (isImage) {
+          imageUrl = result.secure_url;
+        } else {
+          fileUrl = result.secure_url;
+          fileName = req.file.originalname;
+          fileSize = req.file.size;
+
+          if (req.file.mimetype === 'application/pdf') fileType = 'pdf';
+          else if (req.file.mimetype.includes('word')) fileType = 'doc';
+          else if (req.file.mimetype.includes('sheet') || req.file.mimetype.includes('excel'))
+            fileType = 'excel';
+          else if (isVideo) fileType = 'video';
+          else if (req.file.mimetype.startsWith('audio/')) fileType = 'audio';
+          else fileType = 'file';
+        }
       } catch (uploadError) {
         console.error('Cloudinary upload error:', uploadError);
-        return res.status(500).json({ message: 'Error uploading image to cloud storage' });
+        return res.status(500).json({ message: 'Error uploading file to cloud storage' });
       }
     }
 
@@ -155,6 +179,10 @@ const sendMessage = async (req, res) => {
       receiverId: new mongoose.Types.ObjectId(receiverId),
       message: message || '',
       imageUrl,
+      fileUrl,
+      fileName,
+      fileType,
+      fileSize,
     });
 
     // Real-time socket emit
@@ -176,7 +204,11 @@ const sendMessage = async (req, res) => {
         if (receiverUser?.fcmTokens?.length) {
           const senderUser = await User.findById(actualSenderId).select('fullname email');
           const senderName = senderUser?.fullname || senderUser?.email || 'New message';
-          const msgBody = message?.trim() ? message : '📷 Sent an image';
+          const msgBody = message?.trim()
+            ? message
+            : imageUrl
+              ? '📷 Sent an image'
+              : `📎 Sent a file: ${fileName}`;
           const chatUrl = `/chat?userId=${actualSenderId}`;
 
           const fcmPayload = {
@@ -240,7 +272,6 @@ const sendMessage = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 // ── Get messages between two users ───────────────────────────────────────────
 const getMessages = async (req, res) => {
   try {

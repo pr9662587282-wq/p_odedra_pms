@@ -27,6 +27,12 @@ const messageSchema = new mongoose.Schema(
       },
     ],
     imageUrl: { type: String, default: null },
+
+    // ── NAYA: File sharing ke liye ──
+    fileUrl: { type: String, default: null },
+    fileName: { type: String, default: null },
+    fileType: { type: String, default: null }, // 'pdf', 'doc', 'video', 'audio', etc.
+    fileSize: { type: Number, default: null }, // bytes mein
   },
 
   { timestamps: true }

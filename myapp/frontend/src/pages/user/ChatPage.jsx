@@ -781,9 +781,19 @@ const Chat = () => {
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
+    if (!file) return;
+
+    // 25MB limit check
+    if (file.size > 25 * 1024 * 1024) {
+      toast('File too large', { description: 'Max file size is 25MB.' });
+      return;
+    }
+
+    setImageFile(file);
+    if (file.type.startsWith('image/')) {
       setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImagePreview(null); // non-image files ke liye preview nahi, sirf naam dikhega
     }
   };
   // typing on chat live
@@ -1227,6 +1237,39 @@ const Chat = () => {
                                     className="rounded-xl max-w-[220px] mb-1.5 cursor-pointer hover:opacity-95 transition-opacity"
                                   />
                                 )}
+                                {msg.fileUrl && (
+                                  <a
+                                    href={msg.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 bg-white/10 dark:bg-black/20 rounded-xl px-3 py-2 mb-1.5 hover:opacity-80 transition-opacity"
+                                  >
+                                    <span className="text-2xl">
+                                      {msg.fileType === 'pdf'
+                                        ? '📄'
+                                        : msg.fileType === 'doc'
+                                          ? '📝'
+                                          : msg.fileType === 'excel'
+                                            ? '📊'
+                                            : msg.fileType === 'video'
+                                              ? '🎥'
+                                              : msg.fileType === 'audio'
+                                                ? '🎵'
+                                                : '📎'}
+                                    </span>
+                                    <div className="text-left overflow-hidden">
+                                      <p className="text-xs font-semibold truncate max-w-[180px]">
+                                        {msg.fileName}
+                                      </p>
+                                      <p className="text-[10px] opacity-70">
+                                        {msg.fileSize
+                                          ? `${(msg.fileSize / 1024).toFixed(0)} KB`
+                                          : ''}
+                                      </p>
+                                    </div>
+                                  </a>
+                                )}
+
                                 {msg.message && (
                                   <p className="leading-relaxed whitespace-pre-wrap break-words [word-break:break-word] [overflow-wrap:anywhere]">
                                     {msg.message}
@@ -1333,20 +1376,30 @@ const Chat = () => {
                       </button>
                     </div>
                   )}
-                  {imagePreview && !editingMsg && (
-                    <div className="relative inline-block mb-3">
-                      <img
-                        src={imagePreview}
-                        alt="preview"
-                        className="h-20 w-20 object-cover rounded-xl border border-slate-200 dark:border-slate-800"
-                      />
+                  {imageFile && !editingMsg && (
+                    <div className="relative inline-flex items-center gap-2 mb-3 bg-slate-100 dark:bg-[#1E293B] rounded-xl px-3 py-2">
+                      {imagePreview ? (
+                        <img
+                          src={imagePreview}
+                          alt="preview"
+                          className="h-14 w-14 object-cover rounded-lg"
+                        />
+                      ) : (
+                        <div className="h-14 w-14 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/40 rounded-lg text-2xl">
+                          📎
+                        </div>
+                      )}
+                      <div className="text-xs">
+                        <p className="font-semibold truncate max-w-[150px]">{imageFile.name}</p>
+                        <p className="text-slate-400">{(imageFile.size / 1024).toFixed(0)} KB</p>
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
                           setImageFile(null);
                           setImagePreview(null);
                         }}
-                        className="absolute -top-2 -right-2 bg-rose-500 dark:bg-rose-600 text-white rounded-full h-5 w-5 flex items-center justify-center hover:bg-rose-600 transition-colors shadow"
+                        className="ml-2 bg-rose-500 text-white rounded-full h-5 w-5 flex items-center justify-center"
                       >
                         <X size={12} />
                       </button>
@@ -1355,7 +1408,7 @@ const Chat = () => {
                   <form onSubmit={sendMessage} className="flex gap-2">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,video/*,audio/*"
                       ref={fileInputRef}
                       onChange={handleImageSelect}
                       className="hidden"
