@@ -67,6 +67,7 @@ const Chat = () => {
   const [callPeerName, setCallPeerName] = useState('');
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
+  const [remoteStream, setRemoteStream] = useState(null);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -76,7 +77,13 @@ const Chat = () => {
   const callPartnerIdRef = useRef(null);
 
   const ICE_SERVERS = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+    ],
   };
 
   // chat rection.........................................................................
@@ -141,6 +148,8 @@ const Chat = () => {
     };
 
     pc.ontrack = (e) => {
+      console.log('≡ƒô╣ Received remote track:', e);
+      setRemoteStream(e.streams[0]);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = e.streams[0];
       }
@@ -162,10 +171,13 @@ const Chat = () => {
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = localStreamRef.current || null;
     }
-    if (!localStreamRef.current && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream || null;
     }
-  }, [callStatus]);
+    if (callStatus === 'idle') {
+      setRemoteStream(null);
+    }
+  }, [callStatus, remoteStream]);
 
   // Caller: click the video icon
   const startCall = async (targetUser) => {
@@ -250,6 +262,7 @@ const Chat = () => {
     callPartnerIdRef.current = null;
     setCallStatus('idle');
     setIncomingCall(null);
+    setRemoteStream(null);
   };
 
   const toggleMic = () => {

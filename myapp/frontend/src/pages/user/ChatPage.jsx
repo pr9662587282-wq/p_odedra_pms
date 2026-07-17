@@ -38,7 +38,6 @@ const Chat = () => {
   const fileInputRef = useRef(null);
   // online user here or not
   const [onlineUsers, setOnlineUsers] = useState([]);
-  const pendingAcceptRef = useRef(false);
   // Track notification permission — 'granted' | 'denied' | 'default'
   const [notifPermission, setNotifPermission] = useState(
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
@@ -68,6 +67,7 @@ const Chat = () => {
   const [callPeerName, setCallPeerName] = useState('');
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
+  const [remoteStream, setRemoteStream] = useState(null);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -75,11 +75,15 @@ const Chat = () => {
   const localStreamRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
   const callPartnerIdRef = useRef(null);
-  const callStatusRef = useRef('idle');   // mirrors callStatus for use inside socket callbacks
-  const callOfferRef = useRef(null);      // stores the SDP offer so caller can resend it
 
   const ICE_SERVERS = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+    ],
   };
 
   // chat rection.........................................................................
@@ -144,6 +148,8 @@ const Chat = () => {
     };
 
     pc.ontrack = (e) => {
+      console.log('≡ƒô╣ Received remote track:', e);
+      setRemoteStream(e.streams[0]);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = e.streams[0];
       }
@@ -165,10 +171,13 @@ const Chat = () => {
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = localStreamRef.current || null;
     }
-    if (!localStreamRef.current && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream || null;
     }
-  }, [callStatus]);
+    if (callStatus === 'idle') {
+      setRemoteStream(null);
+    }
+  }, [callStatus, remoteStream]);
 
   // Caller: click the video icon
   const startCall = async (targetUser) => {
@@ -176,7 +185,6 @@ const Chat = () => {
       callPartnerIdRef.current = cleanId(targetUser._id);
       setCallPeerName(targetUser.fullname || targetUser.fullName || targetUser.name || 'User');
       setCallStatus('calling');
-      callStatusRef.current = 'calling';
 
       const stream = await getLocalStream();
       const pc = createPeerConnection(callPartnerIdRef.current);
@@ -184,7 +192,6 @@ const Chat = () => {
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      callOfferRef.current = offer; // save so we can resend if callee opens new tab
 
       socketRef.current?.emit('call-user', {
         toUserId: callPartnerIdRef.current,
@@ -196,24 +203,22 @@ const Chat = () => {
       console.error('Failed to start call:', err);
       toast('Camera/mic access needed to call');
       setCallStatus('idle');
-      callStatusRef.current = 'idle';
     }
   };
 
   // Callee: accept the incoming call
-  const acceptCall = async (callData) => {
-    console.log('✅ acceptCall triggered', callData);
-    const call = callData || incomingCall;
-    if (!call) return;
+  const acceptCall = async () => {
+    if (!incomingCall) return;
     try {
-      callPartnerIdRef.current = cleanId(call.fromUserId);
-      setCallPeerName(call.fromName || 'User');
+      callPartnerIdRef.current = cleanId(incomingCall.fromUserId);
+      setCallPeerName(incomingCall.fromName || 'User');
 
       const stream = await getLocalStream();
       const pc = createPeerConnection(callPartnerIdRef.current);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-      await pc.setRemoteDescription(new RTCSessionDescription(call.offer));
+      await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
+      // flush any ICE candidates that arrived before remote description was set
       for (const c of pendingCandidatesRef.current) await pc.addIceCandidate(c);
       pendingCandidatesRef.current = [];
 
@@ -232,6 +237,7 @@ const Chat = () => {
       setCallStatus('idle');
     }
   };
+
   const rejectCall = () => {
     if (incomingCall) {
       socketRef.current?.emit('call-rejected', { toUserId: cleanId(incomingCall.fromUserId) });
@@ -254,10 +260,9 @@ const Chat = () => {
     localStreamRef.current = null;
     pendingCandidatesRef.current = [];
     callPartnerIdRef.current = null;
-    callStatusRef.current = 'idle';
-    callOfferRef.current = null;
     setCallStatus('idle');
     setIncomingCall(null);
+    setRemoteStream(null);
   };
 
   const toggleMic = () => {
@@ -309,14 +314,12 @@ const Chat = () => {
     if (!selectedMsg || selectedMsg.deleted) return;
     setEditingMsg(selectedMsg);
     setMessage(selectedMsg.message || '');
-    setImageFile(null); // no new file selected
-    // Show the existing image as a preview so the user sees what they're captioning
-    setImagePreview(
-      selectedMsg.imageUrl ? `${import.meta.env.VITE_API_URL}${selectedMsg.imageUrl}` : null
-    );
+    setImageFile(null);
+    setImagePreview(null);
     setSelectedMsg(null);
     setTimeout(() => inputRef.current?.focus(), 0);
   };
+
   const cancelEdit = () => {
     setEditingMsg(null);
     setMessage('');
@@ -350,10 +353,7 @@ const Chat = () => {
     const str = String(val).replace(/["']/g, '').trim();
     return str === 'null' || str === 'undefined' ? '' : str;
   };
-  const resolveUrl = (url) => {
-    if (!url) return null;
-    return url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL}${url}`;
-  };
+
   // Initialize myId immediately from localStorage for faster isMe check
   const [myId, setMyId] = useState(() => cleanId(localStorage.getItem('userId')));
   const role = localStorage.getItem('role');
@@ -620,31 +620,9 @@ const Chat = () => {
     ///   video call code are here
 
     socketRef.current.on('incoming-call', ({ fromUserId, fromName, offer }) => {
-      console.log('📞 incoming-call received! pendingAccept:', pendingAcceptRef.current);
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      const callData = { fromUserId, fromName, offer };
-      setIncomingCall(callData);
+      setIncomingCall({ fromUserId, fromName, offer });
       setCallStatus('ringing');
-
-      if (pendingAcceptRef.current) {
-        pendingAcceptRef.current = false;
-        acceptCall(callData); // auto-accept — user already tapped Accept from the notification
-      }
-    });
-
-    // Callee opened app via notification Accept — resend the call offer
-    socketRef.current.on('call-ready', ({ fromUserId }) => {
-      console.log('📞 call-ready received from callee:', fromUserId);
-      // Only resend if we are currently in calling state
-      if (callStatusRef.current === 'calling' && callOfferRef.current && callPartnerIdRef.current) {
-        console.log('📞 Resending call offer to:', callPartnerIdRef.current);
-        socketRef.current.emit('call-user', {
-          toUserId: callPartnerIdRef.current,
-          fromUserId: myId,
-          fromName: currentUser?.fullname || currentUser?.fullName || 'Someone',
-          offer: callOfferRef.current,
-        });
-      }
     });
 
     socketRef.current.on('call-answered', async ({ answer }) => {
@@ -652,7 +630,6 @@ const Chat = () => {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
         for (const c of pendingCandidatesRef.current) await pcRef.current.addIceCandidate(c);
         pendingCandidatesRef.current = [];
-        callStatusRef.current = 'in-call';
         setCallStatus('in-call');
       }
     });
@@ -702,19 +679,11 @@ const Chat = () => {
       if (event.data?.type === 'CALL_NOTIFICATION_CLICK') {
         const { action, fromUserId } = event.data;
         if (action === 'decline') {
-          // Only emit reject if this tab actually has the incoming call
-          if (incomingCall && cleanId(incomingCall.fromUserId) === cleanId(fromUserId)) {
-            socketRef.current?.emit('call-rejected', { toUserId: cleanId(fromUserId) });
-            setIncomingCall(null);
-            setCallStatus('idle');
-          }
+          socketRef.current?.emit('call-rejected', { toUserId: cleanId(fromUserId) });
           return;
         }
-        if (action === 'accept') {
-          if (incomingCall && cleanId(incomingCall.fromUserId) === cleanId(fromUserId)) {
-            acceptCall(incomingCall);
-          }
-          // If incomingCall not set yet, pendingAcceptRef will handle it when incoming-call arrives
+        if (action === 'accept' && incomingCall) {
+          acceptCall();
         }
       }
     };
@@ -727,30 +696,14 @@ const Chat = () => {
     const params = new URLSearchParams(window.location.search);
     const callAction = params.get('callAction');
     const fromUserId = params.get('userId');
-    if (!callAction || !fromUserId) return;
-
-    window.history.replaceState({}, '', '/chat');
-
-    if (callAction === 'decline') {
-      // Wait for socket then decline
-      const tryDecline = () => {
-        if (socketRef.current?.connected) {
-          socketRef.current.emit('call-rejected', { toUserId: cleanId(fromUserId) });
-        } else {
-          setTimeout(tryDecline, 300);
-        }
-      };
-      setTimeout(tryDecline, 500);
-      return;
-    }
-
-    if (callAction === 'accept') {
-      // Mark pending — when incoming-call socket event fires, auto-accept
-      pendingAcceptRef.current = true;
-      setCallStatus('ringing');
-      // No explicit call-ready needed — backend redelivers on socket join
+    if (callAction && fromUserId) {
+      window.history.replaceState({}, '', '/chat');
+      if (callAction === 'decline') {
+        socketRef.current?.emit('call-rejected', { toUserId: cleanId(fromUserId) });
+      }
     }
   }, [myId]);
+
   const fetchMessages = async (receiverId) => {
     const myRequestId = ++requestIdRef.current;
     try {
@@ -841,7 +794,6 @@ const Chat = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // 25MB limit check
     if (file.size > 25 * 1024 * 1024) {
       toast('File too large', { description: 'Max file size is 25MB.' });
       return;
@@ -851,7 +803,7 @@ const Chat = () => {
     if (file.type.startsWith('image/')) {
       setImagePreview(URL.createObjectURL(file));
     } else {
-      setImagePreview(null); // non-image files ke liye preview nahi, sirf naam dikhega
+      setImagePreview(null);
     }
   };
   // typing on chat live
@@ -1290,44 +1242,15 @@ const Chat = () => {
                               <>
                                 {msg.imageUrl && (
                                   <img
-                                    src={resolveUrl(msg.imageUrl)}
+                                    src={msg.imageUrl}
                                     alt="sent"
                                     className="rounded-xl max-w-[220px] mb-1.5 cursor-pointer hover:opacity-95 transition-opacity"
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // ADD
+                                      window.open(`http://localhost:5000${msg.imageUrl}`, '_blank');
+                                    }}
                                   />
                                 )}
-                                {msg.fileUrl && (
-                                  <a
-                                    href={resolveUrl(msg.fileUrl)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 bg-white/10 dark:bg-black/20 rounded-xl px-3 py-2 mb-1.5 hover:opacity-80 transition-opacity"
-                                  >
-                                    <span className="text-2xl">
-                                      {msg.fileType === 'pdf'
-                                        ? '📄'
-                                        : msg.fileType === 'doc'
-                                          ? '📝'
-                                          : msg.fileType === 'excel'
-                                            ? '📊'
-                                            : msg.fileType === 'video'
-                                              ? '🎥'
-                                              : msg.fileType === 'audio'
-                                                ? '🎵'
-                                                : '📎'}
-                                    </span>
-                                    <div className="text-left overflow-hidden">
-                                      <p className="text-xs font-semibold truncate max-w-[180px]">
-                                        {msg.fileName}
-                                      </p>
-                                      <p className="text-[10px] opacity-70">
-                                        {msg.fileSize
-                                          ? `${(msg.fileSize / 1024).toFixed(0)} KB`
-                                          : ''}
-                                      </p>
-                                    </div>
-                                  </a>
-                                )}
-
                                 {msg.message && (
                                   <p className="leading-relaxed whitespace-pre-wrap break-words [word-break:break-word] [overflow-wrap:anywhere]">
                                     {msg.message}
@@ -1434,30 +1357,20 @@ const Chat = () => {
                       </button>
                     </div>
                   )}
-                  {imageFile && !editingMsg && (
-                    <div className="relative inline-flex items-center gap-2 mb-3 bg-slate-100 dark:bg-[#1E293B] rounded-xl px-3 py-2">
-                      {imagePreview ? (
-                        <img
-                          src={imagePreview}
-                          alt="preview"
-                          className="h-14 w-14 object-cover rounded-lg"
-                        />
-                      ) : (
-                        <div className="h-14 w-14 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/40 rounded-lg text-2xl">
-                          📎
-                        </div>
-                      )}
-                      <div className="text-xs">
-                        <p className="font-semibold truncate max-w-[150px]">{imageFile.name}</p>
-                        <p className="text-slate-400">{(imageFile.size / 1024).toFixed(0)} KB</p>
-                      </div>
+                  {imagePreview && !editingMsg && (
+                    <div className="relative inline-block mb-3">
+                      <img
+                        src={imagePreview}
+                        alt="preview"
+                        className="h-20 w-20 object-cover rounded-xl border border-slate-200 dark:border-slate-800"
+                      />
                       <button
                         type="button"
                         onClick={() => {
                           setImageFile(null);
                           setImagePreview(null);
                         }}
-                        className="ml-2 bg-rose-500 text-white rounded-full h-5 w-5 flex items-center justify-center"
+                        className="absolute -top-2 -right-2 bg-rose-500 dark:bg-rose-600 text-white rounded-full h-5 w-5 flex items-center justify-center hover:bg-rose-600 transition-colors shadow"
                       >
                         <X size={12} />
                       </button>
@@ -1466,7 +1379,7 @@ const Chat = () => {
                   <form onSubmit={sendMessage} className="flex gap-2">
                     <input
                       type="file"
-                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,video/*,audio/*"
+                      accept="image/*"
                       ref={fileInputRef}
                       onChange={handleImageSelect}
                       className="hidden"
@@ -1532,7 +1445,7 @@ const Chat = () => {
               <PhoneOff size={16} />
             </button>
             <button
-              onClick={() => acceptCall()}
+              onClick={acceptCall}
               className="h-9 w-9 rounded-full bg-emerald-500 text-white flex items-center justify-center"
             >
               <Phone size={16} />
@@ -1542,7 +1455,7 @@ const Chat = () => {
       )}
 
       {/* Active call / calling overlay */}
-      {(callStatus === 'calling' || callStatus === 'ringing' || callStatus === 'in-call') && (
+      {(callStatus === 'calling' || callStatus === 'in-call') && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
           <div className="flex-1 relative">
             <video
@@ -1561,11 +1474,6 @@ const Chat = () => {
             {callStatus === 'calling' && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                 <p className="text-white text-sm font-semibold">Calling {callPeerName}…</p>
-              </div>
-            )}
-            {callStatus === 'ringing' && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                <p className="text-white text-sm font-semibold">Connecting…</p>
               </div>
             )}
           </div>
