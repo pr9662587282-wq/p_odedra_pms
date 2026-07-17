@@ -1459,12 +1459,14 @@ const Chat = () => {
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
           <div className="flex-1 relative">
             <video
+              key={remoteStream ? 'remote-stream' : 'no-remote'}
               ref={remoteVideoRef}
               autoPlay
               playsInline
               className="w-full h-full object-cover bg-slate-900"
             />
             <video
+              key={localStreamRef.current ? 'local-stream' : 'no-local'}
               ref={localVideoRef}
               autoPlay
               playsInline
