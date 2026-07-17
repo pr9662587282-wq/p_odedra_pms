@@ -702,11 +702,19 @@ const Chat = () => {
       if (event.data?.type === 'CALL_NOTIFICATION_CLICK') {
         const { action, fromUserId } = event.data;
         if (action === 'decline') {
-          socketRef.current?.emit('call-rejected', { toUserId: cleanId(fromUserId) });
+          // Only emit reject if this tab actually has the incoming call
+          if (incomingCall && cleanId(incomingCall.fromUserId) === cleanId(fromUserId)) {
+            socketRef.current?.emit('call-rejected', { toUserId: cleanId(fromUserId) });
+            setIncomingCall(null);
+            setCallStatus('idle');
+          }
           return;
         }
-        if (action === 'accept' && incomingCall) {
-          acceptCall();
+        if (action === 'accept') {
+          if (incomingCall && cleanId(incomingCall.fromUserId) === cleanId(fromUserId)) {
+            acceptCall(incomingCall);
+          }
+          // If incomingCall not set yet, pendingAcceptRef will handle it when incoming-call arrives
         }
       }
     };
@@ -724,36 +732,23 @@ const Chat = () => {
     window.history.replaceState({}, '', '/chat');
 
     if (callAction === 'decline') {
-      // Wait for socket to connect then reject
-      const tryReject = () => {
+      // Wait for socket then decline
+      const tryDecline = () => {
         if (socketRef.current?.connected) {
           socketRef.current.emit('call-rejected', { toUserId: cleanId(fromUserId) });
         } else {
-          setTimeout(tryReject, 300);
+          setTimeout(tryDecline, 300);
         }
       };
-      setTimeout(tryReject, 500);
+      setTimeout(tryDecline, 500);
       return;
     }
 
     if (callAction === 'accept') {
+      // Mark pending — when incoming-call socket event fires, auto-accept
       pendingAcceptRef.current = true;
       setCallStatus('ringing');
-
-      // Wait for socket to connect, then signal caller to resend offer
-      const trySignalReady = () => {
-        if (socketRef.current?.connected) {
-          // Tell caller: "I opened the app, please resend your call offer"
-          socketRef.current.emit('call-ready', {
-            toUserId: cleanId(fromUserId),
-            fromUserId: myId,
-          });
-          console.log('📱 Sent call-ready to caller:', fromUserId);
-        } else {
-          setTimeout(trySignalReady, 300);
-        }
-      };
-      setTimeout(trySignalReady, 800); // give socket time to connect
+      // No explicit call-ready needed — backend redelivers on socket join
     }
   }, [myId]);
   const fetchMessages = async (receiverId) => {
