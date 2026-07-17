@@ -31,11 +31,10 @@ const io = new Server(server, {
 });
 
 const onlineUsers = new Map(); // Track userId -> Set of active socket IDs
-const pendingCalls = new Map(); // calleeId -> { fromUserId, fromName, offer, timestamp }
-const PENDING_CALL_TTL = 30000; // 30s — don't resurrect stale/expired calls // Track userId -> Set of active socket IDs
 
 io.on('connection', (socket) => {
   console.log(`🔌 Socket connected: ${socket.id}`);
+
   socket.on('join', (userId) => {
     if (userId) {
       const cleanId = String(userId).replace(/["']/g, '');
@@ -49,23 +48,6 @@ io.on('connection', (socket) => {
       socket.join(cleanId);
       io.emit('online_users', Array.from(onlineUsers.keys()));
       console.log(`👤 User joined room: ${cleanId}`);
-
-      // If this user has an unanswered call waiting (they opened the app
-      // from a push notification, missing the original live socket emit),
-      // re-deliver the offer now that they're actually connected.
-      const pending = pendingCalls.get(cleanId);
-      if (pending) {
-        if (Date.now() - pending.timestamp < PENDING_CALL_TTL) {
-          console.log(`📞 Redelivering pending call to ${cleanId}`);
-          socket.emit('incoming-call', {
-            fromUserId: pending.fromUserId,
-            fromName: pending.fromName,
-            offer: pending.offer,
-          });
-        } else {
-          pendingCalls.delete(cleanId); // expired, caller already gave up
-        }
-      }
     }
   });
 
@@ -81,10 +63,6 @@ io.on('connection', (socket) => {
   });
   socket.on('call-user', async ({ toUserId, fromUserId, fromName, offer }) => {
     const cleanTo = String(toUserId).replace(/["']/g, '');
-
-    // Remember this call so it can be redelivered if the callee's app
-    // wasn't connected yet (e.g. they had to open it from a push notification)
-    pendingCalls.set(cleanTo, { fromUserId, fromName, offer, timestamp: Date.now() });
 
     // 1. Keep the live socket relay — instant if the tab is already open
     io.to(cleanTo).emit('incoming-call', { fromUserId, fromName, offer });
@@ -157,9 +135,6 @@ io.on('connection', (socket) => {
   socket.on('call-answer', ({ toUserId, answer }) => {
     const cleanTo = String(toUserId).replace(/["']/g, '');
     io.to(cleanTo).emit('call-answered', { answer });
-    // The call was answered — the caller (toUserId here) no longer needs
-    // their pending entry cleared; the callee is socket.userId
-    if (socket.userId) pendingCalls.delete(socket.userId);
   });
 
   socket.on('ice-candidate', ({ toUserId, candidate }) => {
@@ -170,20 +145,11 @@ io.on('connection', (socket) => {
   socket.on('call-rejected', ({ toUserId }) => {
     const cleanTo = String(toUserId).replace(/["']/g, '');
     io.to(cleanTo).emit('call-rejected');
-    if (socket.userId) pendingCalls.delete(socket.userId);
   });
+
   socket.on('call-ended', ({ toUserId }) => {
     const cleanTo = String(toUserId).replace(/["']/g, '');
     io.to(cleanTo).emit('call-ended');
-    if (socket.userId) pendingCalls.delete(socket.userId);
-    pendingCalls.delete(cleanTo);
-  });
-
-  // Callee opened app from notification — ask caller to resend offer
-  socket.on('call-ready', ({ toUserId, fromUserId }) => {
-    const cleanTo = String(toUserId).replace(/["']/g, '');
-    console.log(`📞 call-ready from ${fromUserId} → relaying to caller ${cleanTo}`);
-    io.to(cleanTo).emit('call-ready', { fromUserId });
   });
 
   // ---------------- TYPING INDICATOR ----------------
