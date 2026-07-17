@@ -92,8 +92,9 @@ self.addEventListener('notificationclick', (event) => {
   if (data.type === 'incoming_call') {
     const action = event.action; // 'accept' | 'decline' | '' (body tap = treat as accept)
     const resolvedAction = action || 'accept';
-    const baseUrl = '/chat'; // Always go to chat page
-    const targetUrl = `${baseUrl}?userId=${data.fromUserId}&callAction=${resolvedAction}`;
+    const baseUrl = data.url || '/chat';
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    const targetUrl = `${baseUrl}${separator}callAction=${resolvedAction}`;
 
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
@@ -104,12 +105,11 @@ self.addEventListener('notificationclick', (event) => {
               type: 'CALL_NOTIFICATION_CLICK',
               action: resolvedAction,
               fromUserId: data.fromUserId,
-              fromName: data.fromName,
             });
             return client.focus();
           }
         }
-        // No tab open — open a fresh one with callAction and userId in the URL
+        // No tab open — open a fresh one with callAction in the URL
         if (clients.openWindow) return clients.openWindow(targetUrl);
       })
     );
