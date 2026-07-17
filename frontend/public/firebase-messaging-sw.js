@@ -13,42 +13,26 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// ─── Helper: Build rich WhatsApp-style notification options ──────────────────
+// ─── Helper: Build rich WhatsApp-style notification options (regular msg) ────
 function buildNotifOptions(payload) {
   const body = payload.notification?.body || payload.data?.messageText || 'New message';
   const senderUrl = payload.data?.url || '/chat';
-  const senderName = payload.data?.senderName || '';
   const senderId = payload.data?.senderId || '';
 
   return {
-    // ── Content ──────────────────────────────────────────────────────────────
     body,
-
-    // ── Icons ─────────────────────────────────────────────────────────────────
-    // icon  = large icon shown next to notification body (use your app logo)
-    // badge = tiny mono icon in Android status bar (like WhatsApp's green icon)
-    icon: '/icons/notif-icon.png', // 512x512 colored app icon
-    badge: '/icons/badge-mono.png', // 96x96 monochrome white icon
-
-    // ── Behavior ──────────────────────────────────────────────────────────────
-    tag: `chat-${senderId}`, // collapses multiple msgs from same person
-    renotify: true, // vibrate again even with same tag
+    icon: '/icons/notif-icon.png',
+    badge: '/icons/badge-mono.png',
+    tag: `chat-${senderId}`,
+    renotify: true,
     silent: false,
-    requireInteraction: false, // auto-dismiss after a few seconds
-
-    // ── Android vibration (WhatsApp pattern) ──────────────────────────────────
+    requireInteraction: false,
     vibrate: [300, 100, 300],
-
-    // ── Timestamp (shows "just now" / "2 min ago") ────────────────────────────
     timestamp: Date.now(),
-
-    // ── Data passed to notificationclick ──────────────────────────────────────
     data: {
       url: senderUrl,
       senderId: senderId,
     },
-
-    // ── Action buttons ────────────────────────────────────────────────────────
     actions: [
       { action: 'open', title: '💬 Reply' },
       { action: 'dismiss', title: '✕' },
@@ -56,15 +40,7 @@ function buildNotifOptions(payload) {
   };
 }
 
-// ─── Background / app-closed message handler ─────────────────────────────────
-messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || payload.data?.senderName || 'New Message';
-  self.registration.showNotification(title, buildNotifOptions(payload));
-});
-
-// vedio call fun.....................................................................................
-
-// ─── Helper: call-specific notification (Accept/Decline, no auto-dismiss) ───
+// ─── Helper: call-specific notification (Accept/Decline, no auto-dismiss) ────
 function buildCallNotifOptions(payload) {
   const fromName = payload.data?.fromName || 'Someone';
   const fromId = payload.data?.fromUserId || '';
@@ -73,15 +49,16 @@ function buildCallNotifOptions(payload) {
     body: 'Incoming video call — tap to answer',
     icon: '/icons/notif-icon.png',
     badge: '/icons/badge-mono.png',
-    tag: `call-${fromId}`, // replaces any older call notif from same person
+    tag: `call-${fromId}`,
     renotify: true,
-    requireInteraction: true, // stays on screen until user acts
+    requireInteraction: true,
     vibrate: [300, 100, 300, 100, 300],
     timestamp: Date.now(),
     data: {
       type: 'incoming_call',
       url: payload.data?.url || '/chat',
       fromUserId: fromId,
+      fromName: fromName,
     },
     actions: [
       { action: 'accept', title: '✅ Accept' },
@@ -90,7 +67,7 @@ function buildCallNotifOptions(payload) {
   };
 }
 
-// ─── Background / app-closed message handler ─────────────────────────────────
+// ─── SINGLE background message handler (handles both calls and regular msgs) ─
 messaging.onBackgroundMessage((payload) => {
   if (payload.data?.type === 'incoming_call') {
     const fromName = payload.data?.fromName || 'Someone';
@@ -101,11 +78,11 @@ messaging.onBackgroundMessage((payload) => {
     return;
   }
 
-  // your existing message/reaction handling stays exactly the same
   const title = payload.notification?.title || payload.data?.senderName || 'New Message';
   self.registration.showNotification(title, buildNotifOptions(payload));
 });
 
+// ─── SINGLE notificationclick handler (handles both calls and regular msgs) ──
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
@@ -113,30 +90,35 @@ self.addEventListener('notificationclick', (event) => {
 
   // ── Call notification: Accept / Decline / plain tap ──
   if (data.type === 'incoming_call') {
-    const action = event.action; // 'accept' | 'decline' | '' (body tap)
-    const targetUrl = `${data.url || '/chat'}&callAction=${action || 'open'}`;
+    const action = event.action; // 'accept' | 'decline' | '' (body tap = treat as accept)
+    const resolvedAction = action || 'accept';
+    const baseUrl = '/chat'; // Always go to chat page
+    const targetUrl = `${baseUrl}?userId=${data.fromUserId}&callAction=${resolvedAction}`;
 
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
-            // Tab already open — tell it what happened, don't reload
+            // Tab already open — tell it what happened directly, no reload/navigate
             client.postMessage({
               type: 'CALL_NOTIFICATION_CLICK',
-              action,
+              action: resolvedAction,
               fromUserId: data.fromUserId,
+              fromName: data.fromName,
             });
             return client.focus();
           }
         }
+        // No tab open — open a fresh one with callAction and userId in the URL
         if (clients.openWindow) return clients.openWindow(targetUrl);
       })
     );
     return;
   }
 
-  // ── existing message-click handling — unchanged ──
+  // ── Regular message notification click ──
   if (event.action === 'dismiss') return;
+
   const targetUrl = data.url || '/chat';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
@@ -151,14 +133,18 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
+// ─── SINGLE raw push fallback (some Android browsers bypass Firebase SDK) ────
 self.addEventListener('push', (event) => {
   if (!event.data) return;
+
   let payload;
   try {
     payload = event.data.json();
   } catch {
     return;
   }
+
+  // Firebase SDK already handled it via onBackgroundMessage — skip to avoid duplicates
   if (payload.notification) return;
 
   if (payload.data?.type === 'incoming_call') {
@@ -171,49 +157,6 @@ self.addEventListener('push', (event) => {
     );
     return;
   }
-
-  const title = payload.data?.senderName || payload.data?.title || 'New Message';
-  event.waitUntil(self.registration.showNotification(title, buildNotifOptions(payload)));
-});
-
-//.....................................................................................................
-
-// ─── Notification click handler ──────────────────────────────────────────────
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-
-  if (event.action === 'dismiss') return;
-
-  const targetUrl = event.notification.data?.url || '/chat';
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If app already open — navigate existing tab to chat
-      for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.navigate(targetUrl);
-          return client.focus();
-        }
-      }
-      // Otherwise open new tab directly to chat
-      if (clients.openWindow) return clients.openWindow(targetUrl);
-    })
-  );
-});
-
-// ─── Raw push fallback (some Android browsers bypass Firebase SDK) ────────────
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-
-  let payload;
-  try {
-    payload = event.data.json();
-  } catch {
-    return;
-  }
-
-  // Firebase SDK already handled it via onBackgroundMessage — skip
-  if (payload.notification) return;
 
   const title = payload.data?.senderName || payload.data?.title || 'New Message';
   event.waitUntil(self.registration.showNotification(title, buildNotifOptions(payload)));

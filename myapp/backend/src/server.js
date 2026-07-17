@@ -109,6 +109,10 @@ io.on('connection', (socket) => {
         // and offers can exceed that. This push is only a wake-up signal;
         // the real offer arrives via the socket event once the tab is open.
         const fcmPayload = {
+          notification: {
+            title: `📞 Incoming call — ${fromName || 'Someone'}`,
+            body: 'Tap to answer',
+          },
           data: {
             type: 'incoming_call',
             fromUserId: String(fromUserId),
@@ -123,10 +127,25 @@ io.on('connection', (socket) => {
               priority: 'max',
               defaultSound: true,
               defaultVibrateTimings: true,
+              clickAction: 'FLUTTER_NOTIFICATION_CLICK',
             },
           },
           webpush: {
             headers: { Urgency: 'high' },
+            notification: {
+              title: `📞 Incoming call — ${fromName || 'Someone'}`,
+              body: 'Tap to answer',
+              icon: '/icons/notif-icon.png',
+              badge: '/icons/badge-mono.png',
+              tag: `call-${fromUserId}`,
+              renotify: true,
+              requireInteraction: true,
+              vibrate: [300, 100, 300, 100, 300],
+              actions: [
+                { action: 'accept', title: '✅ Accept' },
+                { action: 'decline', title: '❌ Decline' },
+              ],
+            },
             fcmOptions: { link: chatUrl },
           },
         };

@@ -117,6 +117,47 @@ export const listenForegroundMessages = async (callback) => {
   onMessage(msg, async (payload) => {
     console.log("📩 Foreground FCM message:", payload);
 
+    // If it's an incoming call, let the socket handle the UI in ChatPage
+    if (payload.data?.type === "incoming_call") {
+      const mobile = isMobileDevice();
+      if (mobile) {
+        if ("serviceWorker" in navigator && Notification.permission === "granted") {
+          try {
+            const registration = await navigator.serviceWorker.ready;
+            const title = payload.notification?.title || `📞 Incoming call — ${payload.data?.fromName || 'Someone'}`;
+            const body = payload.notification?.body || "Tap to answer";
+            const url = payload.data?.url || "/chat";
+
+            await registration.showNotification(title, {
+              body,
+              icon: "/icons/notif-icon.png",
+              badge: "/icons/badge-mono.png",
+              tag: `call-${payload.data?.fromUserId}`,
+              renotify: true,
+              requireInteraction: true,
+              silent: false,
+              vibrate: [300, 100, 300, 100, 300],
+              data: {
+                type: "incoming_call",
+                url,
+                fromUserId: payload.data?.fromUserId,
+                fromName: payload.data?.fromName,
+              },
+              actions: [
+                { action: "accept", title: "✅ Accept" },
+                { action: "decline", title: "❌ Decline" },
+              ],
+            });
+            console.log("✅ Call notification shown on mobile");
+          } catch (err) {
+            console.error("❌ SW showNotification failed for call:", err);
+          }
+        }
+      }
+      // Do NOT call callback for calls — ChatPage handles incoming call UI via socket
+      return;
+    }
+
     const mobile = isMobileDevice();
 
     if (mobile) {

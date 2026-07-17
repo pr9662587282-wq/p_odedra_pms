@@ -75,8 +75,8 @@ const Chat = () => {
   const localStreamRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
   const callPartnerIdRef = useRef(null);
-  const callStatusRef = useRef('idle');   // mirrors callStatus for use inside socket callbacks
-  const callOfferRef = useRef(null);      // stores the SDP offer so caller can resend it
+  const callStatusRef = useRef('idle'); // mirrors callStatus for use inside socket callbacks
+  const callOfferRef = useRef(null); // stores the SDP offer so caller can resend it
 
   const ICE_SERVERS = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
@@ -667,7 +667,16 @@ const Chat = () => {
     });
 
     socketRef.current.on('call-rejected', () => {
-      toast('Call declined');
+      toast('Call declined', {
+        style: {
+          background: '#DC2626', // red-600
+          color: '#fff',
+          borderRadius: '12px',
+          padding: '12px 16px',
+          fontWeight: '600',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+        },
+      });
       cleanupCall();
     });
 
@@ -723,12 +732,15 @@ const Chat = () => {
   }, [incomingCall]);
 
   // ── Handle the case where the SW had to open a brand-new tab ──
+  const pendingCallUserId = useRef(null); // Store the caller's userId if we need to open chat later
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const callAction = params.get('callAction');
     const fromUserId = params.get('userId');
-    if (!callAction || !fromUserId) return;
+    if (!fromUserId) return;
 
+    pendingCallUserId.current = cleanId(fromUserId);
     window.history.replaceState({}, '', '/chat');
 
     if (callAction === 'decline') {
@@ -748,9 +760,19 @@ const Chat = () => {
       // Mark pending — when incoming-call socket event fires, auto-accept
       pendingAcceptRef.current = true;
       setCallStatus('ringing');
-      // No explicit call-ready needed — backend redelivers on socket join
     }
   }, [myId]);
+
+  // ── When users are loaded, check if we need to open a chat for a pending call ──
+  useEffect(() => {
+    if (pendingCallUserId.current && users.length > 0) {
+      const targetUser = users.find((u) => cleanId(u._id) === pendingCallUserId.current);
+      if (targetUser) {
+        openChat(targetUser);
+        pendingCallUserId.current = null;
+      }
+    }
+  }, [users]);
   const fetchMessages = async (receiverId) => {
     const myRequestId = ++requestIdRef.current;
     try {
