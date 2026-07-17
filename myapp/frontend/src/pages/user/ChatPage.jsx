@@ -75,6 +75,8 @@ const Chat = () => {
   const localStreamRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
   const callPartnerIdRef = useRef(null);
+  const callStatusRef = useRef('idle');   // mirrors callStatus for use inside socket callbacks
+  const callOfferRef = useRef(null);      // stores the SDP offer so caller can resend it
 
   const ICE_SERVERS = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
@@ -174,6 +176,7 @@ const Chat = () => {
       callPartnerIdRef.current = cleanId(targetUser._id);
       setCallPeerName(targetUser.fullname || targetUser.fullName || targetUser.name || 'User');
       setCallStatus('calling');
+      callStatusRef.current = 'calling';
 
       const stream = await getLocalStream();
       const pc = createPeerConnection(callPartnerIdRef.current);
@@ -181,6 +184,7 @@ const Chat = () => {
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      callOfferRef.current = offer; // save so we can resend if callee opens new tab
 
       socketRef.current?.emit('call-user', {
         toUserId: callPartnerIdRef.current,
@@ -192,6 +196,7 @@ const Chat = () => {
       console.error('Failed to start call:', err);
       toast('Camera/mic access needed to call');
       setCallStatus('idle');
+      callStatusRef.current = 'idle';
     }
   };
 
@@ -249,6 +254,8 @@ const Chat = () => {
     localStreamRef.current = null;
     pendingCandidatesRef.current = [];
     callPartnerIdRef.current = null;
+    callStatusRef.current = 'idle';
+    callOfferRef.current = null;
     setCallStatus('idle');
     setIncomingCall(null);
   };
@@ -625,11 +632,27 @@ const Chat = () => {
       }
     });
 
+    // Callee opened app via notification Accept — resend the call offer
+    socketRef.current.on('call-ready', ({ fromUserId }) => {
+      console.log('📞 call-ready received from callee:', fromUserId);
+      // Only resend if we are currently in calling state
+      if (callStatusRef.current === 'calling' && callOfferRef.current && callPartnerIdRef.current) {
+        console.log('📞 Resending call offer to:', callPartnerIdRef.current);
+        socketRef.current.emit('call-user', {
+          toUserId: callPartnerIdRef.current,
+          fromUserId: myId,
+          fromName: currentUser?.fullname || currentUser?.fullName || 'Someone',
+          offer: callOfferRef.current,
+        });
+      }
+    });
+
     socketRef.current.on('call-answered', async ({ answer }) => {
       if (pcRef.current) {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
         for (const c of pendingCandidatesRef.current) await pcRef.current.addIceCandidate(c);
         pendingCandidatesRef.current = [];
+        callStatusRef.current = 'in-call';
         setCallStatus('in-call');
       }
     });
@@ -696,16 +719,41 @@ const Chat = () => {
     const params = new URLSearchParams(window.location.search);
     const callAction = params.get('callAction');
     const fromUserId = params.get('userId');
-    if (callAction && fromUserId) {
-      window.history.replaceState({}, '', '/chat');
-      if (callAction === 'decline') {
-        socketRef.current?.emit('call-rejected', { toUserId: cleanId(fromUserId) });
-      }
-      if (callAction === 'accept') {
-        console.log('📱 Accept clicked from notification, fromUserId:', fromUserId);
-        pendingAcceptRef.current = true;
-        setCallStatus('ringing');
-      }
+    if (!callAction || !fromUserId) return;
+
+    window.history.replaceState({}, '', '/chat');
+
+    if (callAction === 'decline') {
+      // Wait for socket to connect then reject
+      const tryReject = () => {
+        if (socketRef.current?.connected) {
+          socketRef.current.emit('call-rejected', { toUserId: cleanId(fromUserId) });
+        } else {
+          setTimeout(tryReject, 300);
+        }
+      };
+      setTimeout(tryReject, 500);
+      return;
+    }
+
+    if (callAction === 'accept') {
+      pendingAcceptRef.current = true;
+      setCallStatus('ringing');
+
+      // Wait for socket to connect, then signal caller to resend offer
+      const trySignalReady = () => {
+        if (socketRef.current?.connected) {
+          // Tell caller: "I opened the app, please resend your call offer"
+          socketRef.current.emit('call-ready', {
+            toUserId: cleanId(fromUserId),
+            fromUserId: myId,
+          });
+          console.log('📱 Sent call-ready to caller:', fromUserId);
+        } else {
+          setTimeout(trySignalReady, 300);
+        }
+      };
+      setTimeout(trySignalReady, 800); // give socket time to connect
     }
   }, [myId]);
   const fetchMessages = async (receiverId) => {

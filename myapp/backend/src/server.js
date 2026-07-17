@@ -179,6 +179,13 @@ io.on('connection', (socket) => {
     pendingCalls.delete(cleanTo);
   });
 
+  // Callee opened app from notification — ask caller to resend offer
+  socket.on('call-ready', ({ toUserId, fromUserId }) => {
+    const cleanTo = String(toUserId).replace(/["']/g, '');
+    console.log(`📞 call-ready from ${fromUserId} → relaying to caller ${cleanTo}`);
+    io.to(cleanTo).emit('call-ready', { fromUserId });
+  });
+
   // ---------------- TYPING INDICATOR ----------------
   socket.on('typing', ({ toUserId }) => {
     const cleanTo = String(toUserId).replace(/["']/g, '');
